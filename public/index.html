@@ -1,0 +1,24 @@
+<html>
+    <head>
+        <title>Hello, World!</title>
+    </head>
+    <body>
+        <p>World, Hello!</p>
+        <video id="localVideo" autoplay></video>
+        <video id="remoteVideo" autoplay playsinline></video>
+
+        <div>
+            <button id="startButton">Start</button>
+            <button id="callButton">Call</button>
+            <button id="hangupButton">Hang Up</button>
+        </div>
+        <div id="chat">
+            <div id="incomingMsg"></div>
+            <input id="msg"/>
+            <button id="sendMsg">Send</button>
+        </div>
+        <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+        <script src="/dist/socket.io.js"></script>
+        <script src="src/index.js"></script>
+    </body>
+</html>
