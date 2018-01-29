@@ -16,7 +16,7 @@ io.on('connection', client => {
   console.log('Connected')
   client.on('message', message => {
     console.log(message)
-    client.broadcast.emit('new message', message)
+    client.broadcast.emit('message', message)
   })
   client.on('create or join', function(room) {
     console.log('Received request to create or join room ' + room)
