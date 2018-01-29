@@ -26,5 +26,5 @@ socket.on('joined', (room, clientId) => {
 })
 
 socket.on('log', (array) => {
-  console.log.apply(console, array)
+  console.log(console, array)
 })
