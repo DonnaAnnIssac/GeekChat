@@ -15,10 +15,9 @@ let clientCounter = 0
 io.on('connection', client => {
   console.log('Connected')
   client.on('message', message => {
-    console.log(message)
-    client.broadcast.emit('message', message)
+    client.to('test').emit('message', message)
   })
-  client.on('create or join', function(room) {
+  client.on('create or join', (room) => {
     console.log('Received request to create or join room ' + room)
     let numClients = ++clientCounter
     console.log('Room ' + room + ' now has ' + numClients + ' client(s)')
@@ -36,10 +35,10 @@ io.on('connection', client => {
       client.emit('full', room)
     }
   })
-  client.on('ipaddr', function() {
+  client.on('ipaddr', () => {
     let ifaces = os.networkInterfaces()
     for (let dev in ifaces) {
-      ifaces[dev].forEach(function(details) {
+      ifaces[dev].forEach((details) => {
         if (details.family === 'IPv4' && details.address !== '127.0.0.1') {
           client.emit('ipaddr', details.address)
         }
