@@ -5,25 +5,25 @@ let isStarted = false
 let localStream
 let pc
 let remoteStream
-let turnReady
+// let turnReady
 
-let pcConfig = {
-  'iceServers': [{
-    'urls': 'stun:stun.l.google.com:19302'
-  }]
-}
+// let pcConfig = {
+//   'iceServers': [{
+//     'urls': 'stun:stun.l.google.com:19302'
+//   }]
+// }
 
-// Set up audio and video regardless of what devices are present.
-let sdpConstraints = {
-  offerToReceiveAudio: true,
-  offerToReceiveVideo: true
-}
+// // Set up audio and video regardless of what devices are present.
+// let sdpConstraints = {
+//   offerToReceiveAudio: true,
+//   offerToReceiveVideo: true
+// }
 
-window.room = prompt("Enter room name:")
+let room = prompt('Enter room name:')
 
 let socket = io.connect()
 
-if (room !== "") {
+if (room !== '') {
   console.log('Message from client: Asking to join room ' + room)
   socket.emit('create or join', room)
 }
@@ -48,7 +48,7 @@ socket.on('log', (array) => {
   console.log(console, array)
 })
 
-function sendMessage(message) {
+function sendMessage (message) {
   console.log('Client sending message: ', message)
   socket.emit('message', message)
 }
@@ -57,9 +57,12 @@ function sendMessage(message) {
 socket.on('message', (message) => {
   console.log('Client received message:', message)
   if (message === 'got user media') {
+    console.log('got user media')
+    isChannelReady = true
     maybeStart()
   } else if (message.type === 'offer') {
     if (!isInitiator && !isStarted) {
+      isChannelReady = true
       maybeStart()
     }
     pc.setRemoteDescription(new RTCSessionDescription(message))
@@ -80,16 +83,17 @@ socket.on('message', (message) => {
 let localVideo = document.querySelector('#localVideo')
 let remoteVideo = document.querySelector('#remoteVideo')
 
-navigator.mediaDevices.getUserMedia({
-  audio: false,
+let constraints = {
+  audio: true,
   video: true
-})
+}
+navigator.mediaDevices.getUserMedia(constraints)
 .then(gotStream)
-.catch(function(e) {
+.catch((e) => {
   alert('getUserMedia() error: ' + e.name)
 })
 
-function gotStream(stream) {
+function gotStream (stream) {
   console.log('Adding local stream.')
   localStream = stream
   localVideo.srcObject = stream
@@ -99,17 +103,13 @@ function gotStream(stream) {
   }
 }
 
-let constraints = {
-  video: true
-}
+// if (location.hostname !== 'localhost') {
+//   requestTurn(
+//     'https://computeengineondemand.appspot.com/turn?username=41784574&key=4080218913'
+//   )
+// }
 
-if (location.hostname !== 'localhost') {
-  requestTurn(
-    'https://computeengineondemand.appspot.com/turn?username=41784574&key=4080218913'
-  )
-}
-
-function maybeStart() {
+function maybeStart () {
   console.log('>>>>>>> maybeStart() ', isStarted, localStream, isChannelReady)
   if (!isStarted && typeof localStream !== 'undefined' && isChannelReady) {
     console.log('>>>>>> creating peer connection')
@@ -123,11 +123,11 @@ function maybeStart() {
   }
 }
 
-window.onbeforeunload = function() {
+window.onbeforeunload = function () {
   sendMessage('bye')
 }
 
-function createPeerConnection() {
+function createPeerConnection () {
   try {
     pc = new RTCPeerConnection(null)
     pc.onicecandidate = handleIceCandidate
@@ -137,11 +137,10 @@ function createPeerConnection() {
   } catch (e) {
     console.log('Failed to create PeerConnection, exception: ' + e.message)
     alert('Cannot create RTCPeerConnection object.')
-    return
   }
 }
 
-function handleIceCandidate(event) {
+function handleIceCandidate (event) {
   console.log('icecandidate event: ', event)
   if (event.candidate) {
     sendMessage({
@@ -155,16 +154,16 @@ function handleIceCandidate(event) {
   }
 }
 
-function handleCreateOfferError(event) {
+function handleCreateOfferError (event) {
   console.log('createOffer() error: ', event)
 }
 
-function doCall() {
+function doCall () {
   console.log('Sending offer to peer')
   pc.createOffer(setLocalAndSendMessage, handleCreateOfferError)
 }
 
-function doAnswer() {
+function doAnswer () {
   console.log('Sending answer to peer.')
   pc.createAnswer().then(
     setLocalAndSendMessage,
@@ -172,112 +171,112 @@ function doAnswer() {
   )
 }
 
-function setLocalAndSendMessage(sessionDescription) {
+function setLocalAndSendMessage (sessionDescription) {
   pc.setLocalDescription(sessionDescription)
   console.log('setLocalAndSendMessage sending message', sessionDescription)
   sendMessage(sessionDescription)
 }
 
-function onCreateSessionDescriptionError(error) {
-  trace('Failed to create session description: ' + error.toString())
+function onCreateSessionDescriptionError (error) {
+  console.log('Failed to create session description: ' + error.toString())
 }
 
-function requestTurn(turnURL) {
-  let turnExists = false
-  for (let i in pcConfig.iceServers) {
-    if (pcConfig.iceServers[i].urls.substr(0, 5) === 'turn:') {
-      turnExists = true
-      turnReady = true
-      break
-    }
-  }
-  if (!turnExists) {
-    console.log('Getting TURN server from ', turnURL)
-    // No TURN server. Get one from computeengineondemand.appspot.com:
-    let xhr = new XMLHttpRequest()
-    xhr.onreadystatechange = function() {
-      if (xhr.readyState === 4 && xhr.status === 200) {
-        let turnServer = JSON.parse(xhr.responseText)
-        console.log('Got TURN server: ', turnServer)
-        pcConfig.iceServers.push({
-          'urls': 'turn:' + turnServer.username + '@' + turnServer.turn,
-          'credential': turnServer.password
-        })
-        turnReady = true
-      }
-    }
-    xhr.open('GET', turnURL, true)
-    xhr.send()
-  }
-}
+// function requestTurn(turnURL) {
+//   let turnExists = false
+//   for (let i in pcConfig.iceServers) {
+//     if (pcConfig.iceServers[i].urls.substr(0, 5) === 'turn:') {
+//       turnExists = true
+//       turnReady = true
+//       break
+//     }
+//   }
+//   if (!turnExists) {
+//     console.log('Getting TURN server from ', turnURL)
+//     // No TURN server. Get one from computeengineondemand.appspot.com:
+//     let xhr = new XMLHttpRequest()
+//     xhr.onreadystatechange = function() {
+//       if (xhr.readyState === 4 && xhr.status === 200) {
+//         let turnServer = JSON.parse(xhr.responseText)
+//         console.log('Got TURN server: ', turnServer)
+//         pcConfig.iceServers.push({
+//           'urls': 'turn:' + turnServer.username + '@' + turnServer.turn,
+//           'credential': turnServer.password
+//         })
+//         turnReady = true
+//       }
+//     }
+//     xhr.open('GET', turnURL, true)
+//     xhr.send()
+//   }
+// }
 
-function handleRemoteStreamAdded(event) {
+function handleRemoteStreamAdded (event) {
   console.log('Remote stream added.')
   remoteStream = event.stream
   remoteVideo.srcObject = remoteStream
 }
 
-function handleRemoteStreamRemoved(event) {
+function handleRemoteStreamRemoved (event) {
   console.log('Remote stream removed. Event: ', event)
 }
 
-function hangup() {
-  console.log('Hanging up.')
-  stop()
-  sendMessage('bye')
-}
+// function hangup() {
+//   console.log('Hanging up.')
+//   stop()
+//   sendMessage('bye')
+// }
 
-function handleRemoteHangup() {
+function handleRemoteHangup () {
   console.log('Session terminated.')
   stop()
   isInitiator = false
 }
 
-function stop() {
+function stop () {
   isStarted = false
   pc.close()
   pc = null
 }
 
-///////////////////////////////////////////
+// ///////////////////////////////////////////
 
-function extractSdp(sdpLine, pattern) {
-  let result = sdpLine.match(pattern)
-  return result && result.length === 2 ? result[1] : null
-}
+// function extractSdp(sdpLine, pattern) {
+//   let result = sdpLine.match(pattern)
+//   return result && result.length === 2 ? result[1] : null
+// }
 
-// Set the selected codec to the first in m line.
-function setDefaultCodec(mLine, payload) {
-  let elements = mLine.split(' ')
-  let newLine = []
-  let index = 0
-  for (let i = 0; i < elements.length; i++) {
-    if (index === 3) { // Format of media starts from the fourth.
-      newLine[index++] = payload // Put target payload to the first.
-    }
-    if (elements[i] !== payload) {
-      newLine[index++] = elements[i]
-    }
-  }
-  return newLine.join(' ')
-}
+// // Set the selected codec to the first in m line.
+// function setDefaultCodec(mLine, payload) {
+//   let elements = mLine.split(' ')
+//   let newLine = []
+//   let index = 0
+//   for (let i = 0; i < elements.length; i++) {
+//     if (index === 3) { // Format of media starts from the fourth.
+//       newLine[index++] = payload // Put target payload to the first.
+//     }
+//     if (elements[i] !== payload) {
+//       newLine[index++] = elements[i]
+//     }
+//   }
+//   return newLine.join(' ')
+// }
 
-// Strip CN from sdp before CN constraints is ready.
-function removeCN(sdpLines, mLineIndex) {
-  let mLineElements = sdpLines[mLineIndex].split(' ')
-  // Scan from end for the convenience of removing an item.
-  for (let i = sdpLines.length - 1; i >= 0; i--) {
-    let payload = extractSdp(sdpLines[i], /a=rtpmap:(\d+) CN\/\d+/i)
-    if (payload) {
-      let cnPos = mLineElements.indexOf(payload)
-      if (cnPos !== -1) {
-        // Remove CN payload from m line.
-        mLineElements.splice(cnPos, 1)
-      }
-      // Remove CN line in sdp
-      sdpLines.splice(i, 1)
-    }
-  }
-  sdpLines[mLineIndex] = mLineElements.join(' ')
-  return sdpLines
-}
+// // Strip CN from sdp before CN constraints is ready.
+// function removeCN(sdpLines, mLineIndex) {
+//   let mLineElements = sdpLines[mLineIndex].split(' ')
+//   // Scan from end for the convenience of removing an item.
+//   for (let i = sdpLines.length - 1; i >= 0; i--) {
+//     let payload = extractSdp(sdpLines[i], /a=rtpmap:(\d+) CN\/\d+/i)
+//     if (payload) {
+//       let cnPos = mLineElements.indexOf(payload)
+//       if (cnPos !== -1) {
+//         // Remove CN payload from m line.
+//         mLineElements.splice(cnPos, 1)
+//       }
+//       // Remove CN line in sdp
+//       sdpLines.splice(i, 1)
+//     }
+//   }
+//   sdpLines[mLineIndex] = mLineElements.join(' ')
+//   return sdpLines
+// }
