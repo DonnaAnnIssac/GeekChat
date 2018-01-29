@@ -1,23 +1,15 @@
-
+let sendData = document.getElementById('msg')
+let sendBtn = document.getElementById('sendMsg')
+let incomingMsg = document.getElementById('incomingMsg')
 let isChannelReady = false
 let isInitiator = false
 let isStarted = false
 let localStream
 let pc
 let remoteStream
-// let turnReady
-
-// let pcConfig = {
-//   'iceServers': [{
-//     'urls': 'stun:stun.l.google.com:19302'
-//   }]
-// }
-
-// // Set up audio and video regardless of what devices are present.
-// let sdpConstraints = {
-//   offerToReceiveAudio: true,
-//   offerToReceiveVideo: true
-// }
+let sendChannel, receiveChannel
+sendBtn.disabled = true
+sendBtn.addEventListener('click', sendMsg())
 
 let room = prompt('Enter room name:')
 
@@ -103,12 +95,6 @@ function gotStream (stream) {
   }
 }
 
-// if (location.hostname !== 'localhost') {
-//   requestTurn(
-//     'https://computeengineondemand.appspot.com/turn?username=41784574&key=4080218913'
-//   )
-// }
-
 function maybeStart () {
   console.log('>>>>>>> maybeStart() ', isStarted, localStream, isChannelReady)
   if (!isStarted && typeof localStream !== 'undefined' && isChannelReady) {
@@ -130,9 +116,14 @@ window.onbeforeunload = function () {
 function createPeerConnection () {
   try {
     pc = new RTCPeerConnection(null)
+    sendChannel = pc.createDataChannel('sendDataChannel', null)
     pc.onicecandidate = handleIceCandidate
     pc.onaddstream = handleRemoteStreamAdded
     pc.onremovestream = handleRemoteStreamRemoved
+    sendChannel.onopen = handleSendChannelStateChange
+    sendChannel.onclose = handleSendChannelStateChange
+    pc.ondatachannel = receiveChannelCallback
+    sendBtn.disabled = false
     console.log('Created RTCPeerConnnection')
   } catch (e) {
     console.log('Failed to create PeerConnection, exception: ' + e.message)
@@ -181,35 +172,6 @@ function onCreateSessionDescriptionError (error) {
   console.log('Failed to create session description: ' + error.toString())
 }
 
-// function requestTurn(turnURL) {
-//   let turnExists = false
-//   for (let i in pcConfig.iceServers) {
-//     if (pcConfig.iceServers[i].urls.substr(0, 5) === 'turn:') {
-//       turnExists = true
-//       turnReady = true
-//       break
-//     }
-//   }
-//   if (!turnExists) {
-//     console.log('Getting TURN server from ', turnURL)
-//     // No TURN server. Get one from computeengineondemand.appspot.com:
-//     let xhr = new XMLHttpRequest()
-//     xhr.onreadystatechange = function() {
-//       if (xhr.readyState === 4 && xhr.status === 200) {
-//         let turnServer = JSON.parse(xhr.responseText)
-//         console.log('Got TURN server: ', turnServer)
-//         pcConfig.iceServers.push({
-//           'urls': 'turn:' + turnServer.username + '@' + turnServer.turn,
-//           'credential': turnServer.password
-//         })
-//         turnReady = true
-//       }
-//     }
-//     xhr.open('GET', turnURL, true)
-//     xhr.send()
-//   }
-// }
-
 function handleRemoteStreamAdded (event) {
   console.log('Remote stream added.')
   remoteStream = event.stream
@@ -219,12 +181,6 @@ function handleRemoteStreamAdded (event) {
 function handleRemoteStreamRemoved (event) {
   console.log('Remote stream removed. Event: ', event)
 }
-
-// function hangup() {
-//   console.log('Hanging up.')
-//   stop()
-//   sendMessage('bye')
-// }
 
 function handleRemoteHangup () {
   console.log('Session terminated.')
@@ -238,45 +194,35 @@ function stop () {
   pc = null
 }
 
-// ///////////////////////////////////////////
+function sendMsg () {
+  let data = sendData.value
+  sendChannel.send(data)
+}
 
-// function extractSdp(sdpLine, pattern) {
-//   let result = sdpLine.match(pattern)
-//   return result && result.length === 2 ? result[1] : null
-// }
+function handleSendChannelStateChange () {
+  if (sendChannel.readyState === 'open') {
+    sendData.disabled = false
+    sendData.focus()
+    sendBtn.disabled = false
+  } else {
+    sendData.disabled = true
+    sendBtn.disabled = true
+  }
+}
 
-// // Set the selected codec to the first in m line.
-// function setDefaultCodec(mLine, payload) {
-//   let elements = mLine.split(' ')
-//   let newLine = []
-//   let index = 0
-//   for (let i = 0; i < elements.length; i++) {
-//     if (index === 3) { // Format of media starts from the fourth.
-//       newLine[index++] = payload // Put target payload to the first.
-//     }
-//     if (elements[i] !== payload) {
-//       newLine[index++] = elements[i]
-//     }
-//   }
-//   return newLine.join(' ')
-// }
+function receiveChannelCallback (event) {
+  receiveChannel = event.channel
+  receiveChannel.onmessage = onReceiveCallback
+  receiveChannel.onopen = handleReceiveChannelStateChange
+  receiveChannel.onclose = handleReceiveChannelStateChange
+}
 
-// // Strip CN from sdp before CN constraints is ready.
-// function removeCN(sdpLines, mLineIndex) {
-//   let mLineElements = sdpLines[mLineIndex].split(' ')
-//   // Scan from end for the convenience of removing an item.
-//   for (let i = sdpLines.length - 1; i >= 0; i--) {
-//     let payload = extractSdp(sdpLines[i], /a=rtpmap:(\d+) CN\/\d+/i)
-//     if (payload) {
-//       let cnPos = mLineElements.indexOf(payload)
-//       if (cnPos !== -1) {
-//         // Remove CN payload from m line.
-//         mLineElements.splice(cnPos, 1)
-//       }
-//       // Remove CN line in sdp
-//       sdpLines.splice(i, 1)
-//     }
-//   }
-//   sdpLines[mLineIndex] = mLineElements.join(' ')
-//   return sdpLines
-// }
+function onReceiveCallback (event) {
+  let msg = document.createElement('div')
+  msg.innerText = event.data
+  incomingMsg.appendChild(msg)
+}
+
+function handleReceiveChannelStateChange () {
+  console.log(receiveChannel.readyState)
+}
