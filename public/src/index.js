@@ -9,7 +9,7 @@ let pc
 let remoteStream
 let sendChannel, receiveChannel
 sendBtn.disabled = true
-sendBtn.addEventListener('click', sendMsg())
+sendBtn.addEventListener('click', sendMsgOverChannel)
 
 let room = prompt('Enter room name:')
 
@@ -194,8 +194,12 @@ function stop () {
   pc = null
 }
 
-function sendMsg () {
+function sendMsgOverChannel (event) {
+  event.preventDefault()
   let data = sendData.value
+  let msg = document.createElement('div')
+  msg.innerText = data
+  incomingMsg.appendChild(msg)
   sendChannel.send(data)
 }
 
@@ -220,6 +224,7 @@ function receiveChannelCallback (event) {
 function onReceiveCallback (event) {
   let msg = document.createElement('div')
   msg.innerText = event.data
+  console.log('Appending')
   incomingMsg.appendChild(msg)
 }
 
