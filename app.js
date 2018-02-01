@@ -2,7 +2,6 @@ const express = require('express')
 const app = express()
 const server = require('http').createServer(app)
 const io = require('socket.io')(server)
-// const uuid = require('node-uuid')
 app.use(express.static('./node_modules/socket.io-client'))
 app.use(express.static('./public'))
 
@@ -12,11 +11,14 @@ server.listen(9999, () => {
 
 let clientCounter = 0
 let rooms = {}
-// let userIds = {}
 io.on('connection', client => {
   console.log('Connected')
-  client.on('message', (message, room) => {
-    client.to(room).emit('message', message, client.id)
+  client.on('message', (message, room, id) => {
+    if (id === null) {
+      client.to(room).emit('message', message, client.id)
+    } else {
+      client.to(id).emit('message', message, client.id)
+    }
   })
   client.on('create or join', room => {
     console.log('Received request to create or join room ' + room)
@@ -29,7 +31,7 @@ io.on('connection', client => {
       rooms[room].push(client)
       client.join(room)
       client.emit('joined', room)
-      client.to(room).emit('new peer', room, client.id)
+      client.to(room).emit('new peer', room)
     }
   })
   // client.on('disconnect', room => {
