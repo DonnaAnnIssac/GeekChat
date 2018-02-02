@@ -3,7 +3,6 @@ let localVideo = document.querySelector('#localVideo')
 let remoteFeeds = document.querySelector('#remoteFeeds')
 let isChannelReady = false
 let isInitiator = false
-let isStarted = false
 let localStream
 let pcDictionary= {}, myPeers = [], candidates = []
 let constraints = {
@@ -28,7 +27,6 @@ socket.on('joined', room => {
 })
 
 socket.on('new peer', room => {
-  isStarted = false
   isInitiator = true
 })
 
@@ -45,15 +43,15 @@ socket.on('message', (message, id) => {
       isChannelReady = true
       maybeStart(id, message)
     }
-  } else if (message.type === 'answer' && isStarted) {
+  } else if (message.type === 'answer') {
     pcDictionary[id].setRemoteDescription(new RTCSessionDescription(message))
-  } else if (message.type === 'candidate' && isStarted) {
+  } else if (message.type === 'candidate') {
     let candidate = new RTCIceCandidate({
       sdpMLineIndex: message.label,
       candidate: message.candidate
     })
     pcDictionary[id].addIceCandidate(candidate)
-  } else if (message === 'bye' && isStarted) {
+  } else if (message === 'bye') {
     handleRemoteHangup(id)
   }
 })
@@ -75,7 +73,6 @@ function gotStream (stream) {
 function  maybeStart (id, message) {
   if (typeof localStream !== undefined && isChannelReady) {
     createPeerConnection(id)
-    isStarted = true
     if (isInitiator) {
       doCall(id)
     } else {
@@ -170,7 +167,6 @@ function handleRemoteHangup (id) {
 }
 
 function stop () {
-  isStarted = false
   pcDictionary[id].close()
   pcDictionary[id] = null
 }
