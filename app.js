@@ -8,8 +8,7 @@ app.use(express.static('./public'))
 server.listen(9999, () => {
   console.log('Listening on 9999')
 })
-
-let clientCounter = 0
+let clients = {}
 let rooms = {}
 io.on('connection', client => {
   console.log('Connected')
