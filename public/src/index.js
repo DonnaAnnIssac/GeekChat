@@ -7,25 +7,37 @@ let localVideo = document.querySelector('#localVideo')
 let remoteFeeds = document.querySelector('#remoteFeeds')
 let isChannelReady = false
 let isInitiator = false
-let localStream
-let pcDictionary= {}, myPeers = [], candidates = []
+let localStream, myId, myName
+let pcDictionary = {}, peersInCurrRoom = [], candidates = [], clients = {}
+
 let constraints = {
   audio: true,
   video: true
 }
+
 sendBtn.disabled = true
 callBtn.disabled = true
 sendBtn.addEventListener('click', sendMsgOverChannel)
 
-let room = prompt('Enter room name:')
+document.querySelector('button#enterName').addEventListener('click', () => {
+  socket.emit('set active', document.querySelector('input#clientName').value)
+})
 
-if (room) {
-  callBtn.disabled = false
-  callBtn.addEventListener('click', () => {
-    callBtn.disabled = true
-    socket.emit('create or join', room)
-  })
-}
+socket.on('active', (id, name, clientsList) => {
+  myId = id
+  myName = name
+  clients = clientsList
+})
+
+// let room = prompt('Enter room name:')
+
+// if (room) {
+//   callBtn.disabled = false
+//   callBtn.addEventListener('click', () => {
+//     callBtn.disabled = true
+//     socket.emit('create or join', room)
+//   })
+// }
 
 socket.on('created', room => {
   isInitiator = true
@@ -50,7 +62,7 @@ socket.on('message', (message, id) => {
     isChannelReady = true
     sendNotifications(id, 'joined')
     maybeStart(id)
-  } else if (message.type === 'offer' && myPeers.indexOf(id) === -1) {
+  } else if (message.type === 'offer' && peersInCurrRoom.indexOf(id) === -1) {
     if (!isInitiator) {
       isChannelReady = true
       maybeStart(id, message)
@@ -215,7 +227,7 @@ function doAnswer (id) {
 
 function setLocalAndSendMessage (sessionDescription, id) {
   pcDictionary[id].setLocalDescription(sessionDescription)
-  myPeers.push(id)
+  peersInCurrRoom.push(id)
   sendMessage(sessionDescription, id)
 }
 
