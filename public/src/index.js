@@ -1,64 +1,111 @@
 let socket = io.connect()
+let currRoom, currClient, myId, myName
+let listOfClients = document.querySelector('#clientsList')
+
 let sendData = document.getElementById('msg')
 let sendBtn = document.getElementById('sendMsg')
 let incomingMsg = document.getElementById('incomingMsg')
 let callBtn = document.getElementById('callButton')
+let hangBtn = document.getElementById('hangupButton')
 let localVideo = document.querySelector('#localVideo')
 let remoteFeeds = document.querySelector('#remoteFeeds')
+let localStream, remoteStream = {}
 let isChannelReady = false
 let isInitiator = false
-let localStream, myId, myName
-let pcDictionary = {}, peersInCurrRoom = [], candidates = [], clients = {}
+let pcDictionary = {}, peersInCurrRoom = [], candidates = [], allClients = {}
 
 let constraints = {
   audio: true,
   video: true
 }
-
 sendBtn.disabled = true
 callBtn.disabled = true
-sendBtn.addEventListener('click', sendMsgOverChannel)
+hangBtn.disabled = true
 
+sendBtn.addEventListener('click', sendMsgOverChannel)
+document.querySelector('#newRoom').addEventListener('click', toggleClientList)
+
+//temporary login
 document.querySelector('button#enterName').addEventListener('click', () => {
+   ('Logging in as ', document.querySelector('input#clientName').value)
   socket.emit('set active', document.querySelector('input#clientName').value)
 })
 
 socket.on('active', (id, name, clientsList) => {
   myId = id
   myName = name
-  clients = clientsList
+  updateClientList(clientsList)
 })
 
-// let room = prompt('Enter room name:')
+function updateClientList (clientsList) {
+  for (client in clientsList) {
+    if (!allClients.hasOwnProperty(client) && client !== myId) {
+      let clientDiv = document.createElement('div')
+      clientDiv.innerText = clientsList[client].clientName
+      clientDiv.id = client
+      clientDiv.addEventListener('click', () => {
+        currClient = clientDiv.innerText
+        createRoom(clientDiv.id)
+      })
+      listOfClients.appendChild(clientDiv)
+      listOfClients.style.display = 'none'
+      allClients[client] = clientsList[client].clientName
+    }
+  }
+}
 
-// if (room) {
-//   callBtn.disabled = false
-//   callBtn.addEventListener('click', () => {
-//     callBtn.disabled = true
-//     socket.emit('create or join', room)
-//   })
-// }
+function toggleClientList () {
+  listOfClients.style.display = (listOfClients.style.display === 'block') ? 'none' : 'block'
+}
+
+function createRoom (id) {
+  socket.emit('create', id)
+}
+
+socket.on('new peer', clients => {
+  isInitiator = true
+  updateClientList(clients)
+})
 
 socket.on('created', room => {
   isInitiator = true
+  currRoom = room
   getLocalStream()
 })
 
-socket.on('joined', room => {
+socket.on('invited', room => {
   isInitiator = false
-  getLocalStream()
+  currRoom = room
+  socket.emit('join', room)
 })
 
-socket.on('new peer', room => {
-  isInitiator = true
+socket.on('joined', clients => {
+  console.log('Joined room ' + currRoom)
+  getLocalStream()
+  updateChatHead(clients)
 })
+
+socket.on('accepted', clients => {
+  updateChatHead(clients)
+})
+
+function updateChatHead (clients) {
+  let currPeers = clients.filter(client => client !== myId)
+  currPeers.forEach((peer, i) => {
+    if (i === 0) {
+      document.querySelector('#chatHead').innerText = allClients[peer]
+    } else {
+      document.querySelector('#chatHead').innerText = ', ' + allClients[peer]
+    }
+  })
+}
 
 function sendMessage (message, id) {
-  socket.emit('message', message, room, id)
+  socket.emit('message', message, currRoom, id)
 }
 
 socket.on('message', (message, id) => {
-  if (message === 'got user media') {
+  if (message === 'got user media' && isInitiator) {
     isChannelReady = true
     sendNotifications(id, 'joined')
     maybeStart(id)
@@ -90,8 +137,8 @@ function getLocalStream () {
 
 function gotStream (stream) {
   localStream = stream
-  localVideo.srcObject = stream
-  // sendMessage('got user media')
+  // localVideo.srcObject = stream
+  sendMessage('got user media')
 }
 
 function  maybeStart (id, message) {
@@ -121,17 +168,18 @@ function createPeerConnection (id) {
     }
     pcDictionary[id].onremovestream = handleRemoteStreamRemoved
     pcDictionary[id].addStream(localStream)
-    pcDictionary[id].sendChannel = pcDictionary[id].createDataChannel(room, null)
+    pcDictionary[id].sendChannel = pcDictionary[id].createDataChannel(currRoom)
     pcDictionary[id].sendChannel.onopen = () => {
+      sendBtn.disabled = false
       handleSendChannelStateChange(pcDictionary[id].sendChannel)
     }
     pcDictionary[id].sendChannel.onclose = () => {
+      sendBtn.disabled = true
       handleSendChannelStateChange(pcDictionary[id].sendChannel)
     }
     pcDictionary[id].ondatachannel = event => {
       receiveChannelCallback(event, id)
     }
-    sendBtn.disabled = false
   } catch (e) {
     console.log('Failed to create PeerConnection, exception: ' + e.message)
     alert('Cannot create RTCPeerConnection object.')
@@ -160,11 +208,12 @@ function sendCandidates (client) {
 }
 
 function handleRemoteStreamAdded (event, id) {
-  let remoteVideo = document.createElement('video')
-  remoteVideo.setAttribute('autoplay', true)
-  remoteVideo.setAttribute('id', id)
-  remoteVideo.srcObject = event.stream
-  remoteFeeds.appendChild(remoteVideo)
+  // let remoteVideo = document.createElement('video')
+  // remoteVideo.setAttribute('autoplay', true)
+  // remoteVideo.setAttribute('id', id)
+  // remoteVideo.srcObject = event.stream
+  // remoteFeeds.appendChild(remoteVideo)
+  remoteStream[id] = event.stream
 }
 
 function handleRemoteStreamRemoved (event) {
@@ -204,12 +253,11 @@ function handleReceiveChannelStateChange (id) {
 }
 
 function sendMsgOverChannel () {
-  let data = sendData.value
   let msg = document.createElement('div')
-  msg.innerText = event.data
+  msg.innerText = sendData.value
   incomingMsg.appendChild(msg)
   for (key in pcDictionary) {
-    pcDictionary[key].sendChannel.send(data)
+    pcDictionary[key].sendChannel.send(sendData.value)
   }
 }
 
