@@ -23,6 +23,10 @@ callBtn.disabled = true
 hangBtn.disabled = true
 
 sendBtn.addEventListener('click', sendMsgOverChannel)
+callBtn.addEventListener('click', () => {
+  hangBtn.disabled = false
+  callPeers()
+})
 document.querySelector('#newRoom').addEventListener('click', toggleClientList)
 
 //temporary login
@@ -137,7 +141,6 @@ function getLocalStream () {
 
 function gotStream (stream) {
   localStream = stream
-  // localVideo.srcObject = stream
   sendMessage('got user media')
 }
 
@@ -167,14 +170,11 @@ function createPeerConnection (id) {
       handleRemoteStreamAdded(event, id)
     }
     pcDictionary[id].onremovestream = handleRemoteStreamRemoved
-    pcDictionary[id].addStream(localStream)
     pcDictionary[id].sendChannel = pcDictionary[id].createDataChannel(currRoom)
     pcDictionary[id].sendChannel.onopen = () => {
-      sendBtn.disabled = false
       handleSendChannelStateChange(pcDictionary[id].sendChannel)
     }
     pcDictionary[id].sendChannel.onclose = () => {
-      sendBtn.disabled = true
       handleSendChannelStateChange(pcDictionary[id].sendChannel)
     }
     pcDictionary[id].ondatachannel = event => {
@@ -208,12 +208,8 @@ function sendCandidates (client) {
 }
 
 function handleRemoteStreamAdded (event, id) {
-  // let remoteVideo = document.createElement('video')
-  // remoteVideo.setAttribute('autoplay', true)
-  // remoteVideo.setAttribute('id', id)
-  // remoteVideo.srcObject = event.stream
-  // remoteFeeds.appendChild(remoteVideo)
   remoteStream[id] = event.stream
+  callBtn.disabled = false
 }
 
 function handleRemoteStreamRemoved (event) {
@@ -302,4 +298,16 @@ function stop (id) {
 
 function sendNotifications (id, action) {
   document.getElementById('notifications').innerText = 'Client ' + id + ' ' + action
+}
+
+function callPeers () {
+  pcDictionary[id].addStream(localStream)
+  localVideo.srcObject = localStream
+  peersInCurrRoom.forEach(peer => {
+    let remoteVideo = document.createElement('video')
+    remoteVideo.setAttribute('autoplay', true)
+    remoteVideo.setAttribute('id', peer)
+    remoteVideo.srcObject = remoteStream[peer]
+    remoteFeeds.appendChild(remoteVideo)
+  })
 }
