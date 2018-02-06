@@ -48,7 +48,7 @@ function updateClientList (clientsList) {
       clientDiv.innerText = clientsList[client].clientName
       clientDiv.id = client
       clientDiv.addEventListener('click', () => {
-        currClient = clientDiv.innerText
+        currClient = clientDiv.id
         toggleClientList()
         createRoom(clientDiv.id)
       })
@@ -68,41 +68,46 @@ function createRoom (id) {
 }
 
 socket.on('new peer', clients => {
-  isInitiator = true
   updateClientList(clients)
 })
 
-socket.on('created', room => {
+socket.on('created', (room, id) => {
   isInitiator = true
   currRoom = room
-  getLocalStream()
+  updateChatHead(id)
+  sendBtn.disabled = false
+  // getLocalStream()
 })
 
-socket.on('invited', room => {
+socket.on('invited', (room, msg, from) => {
   isInitiator = false
   currRoom = room
+  currClient = from
+  updateChatHead(from)
+  acceptIncomingMsg(msg)
+  sendBtn.disabled = false
   socket.emit('join', room)
 })
 
 socket.on('joined', clients => {
   console.log('Joined room ' + currRoom)
-  getLocalStream()
-  updateChatHead(clients)
+  // start peer connection handshake here
+  // getLocalStream()
 })
 
 socket.on('accepted', clients => {
-  updateChatHead(clients)
+  // start peer connection handshake here
+  // updateChatHead(clients)
 })
 
-function updateChatHead (clients) {
-  let currPeers = clients.filter(client => client !== myId)
-  currPeers.forEach((peer, i) => {
-    if (i === 0) {
-      document.querySelector('#chatHead').innerText = allClients[peer]
-    } else {
-      document.querySelector('#chatHead').innerText = ', ' + allClients[peer]
-    }
-  })
+function updateChatHead (client) {
+  document.querySelector('#chatHead').innerText = allClients[client]
+}
+
+function acceptIncomingMsg (message) {
+  let msg = document.createElement('div')
+  msg.innerText = message
+  incomingMsg.appendChild(msg)
 }
 
 function sendMessage (message, id) {
@@ -241,9 +246,7 @@ function receiveChannelCallback (event, id) {
 }
 
 function onReceiveCallback (event) {
-  let msg = document.createElement('div')
-  msg.innerText = event.data
-  incomingMsg.appendChild(msg)
+  acceptIncomingMsg(event.data)
 }
 
 function handleReceiveChannelStateChange (id) {
@@ -251,11 +254,14 @@ function handleReceiveChannelStateChange (id) {
 }
 
 function sendMsgOverChannel () {
-  let msg = document.createElement('div')
-  msg.innerText = sendData.value
-  incomingMsg.appendChild(msg)
-  for (key in pcDictionary) {
-    pcDictionary[key].sendChannel.send(sendData.value)
+  acceptIncomingMsg(sendData.value)
+  if (Object.keys(pcDictionary).length === 0) { //before peer connection is made
+    console.log(currClient)
+    socket.emit('init', sendData.value, currClient, currRoom)
+  } else {
+    for (key in pcDictionary) {
+      pcDictionary[key].sendChannel.send(sendData.value)
+    }
   }
 }
 
