@@ -21,14 +21,23 @@ let constraints = {
 sendBtn.disabled = true
 callBtn.disabled = true
 hangBtn.disabled = true
-
+hangBtn.addEventListener('click', stop(currClient))
 sendBtn.addEventListener('click', sendMsgOverChannel)
 callBtn.addEventListener('click', () => {
+  isInitiator = true
   hangBtn.disabled = false
-  callPeers()
+  peersInCurrRoom = []
+  sendMessage('call invitation')
 })
 document.querySelector('#newRoom').addEventListener('click', toggleClientList)
-
+document.getElementById('accept').addEventListener('click', () => {
+  document.getElementById('callInvite').style.display = 'none'
+  sendMessage('accept call', currClient)
+})
+document.getElementById('decline').addEventListener('click', () => {
+  document.getElementById('callInvite').style.display = 'none'
+  sendMessage('decline call', currClient)
+})
 //temporary login
 document.querySelector('button#enterName').addEventListener('click', () => {
    ('Logging in as ', document.querySelector('input#clientName').value)
@@ -72,32 +81,31 @@ socket.on('new peer', clients => {
 })
 
 socket.on('created', (room, id) => {
-  isInitiator = true
   currRoom = room
   updateChatHead(id)
   sendBtn.disabled = false
-  // getLocalStream()
+  callBtn.disabled = false
+  socket.emit('init', room, id)
 })
-
-socket.on('invited', (room, msg, from) => {
+socket.on('init', room => {
   isInitiator = false
   currRoom = room
+  socket.emit('join', room)
+})
+socket.on('chat text', (room, msg, from) => {
   currClient = from
   updateChatHead(from)
   acceptIncomingMsg(msg)
   sendBtn.disabled = false
-  socket.emit('join', room)
+  callBtn.disabled = false
 })
 
 socket.on('joined', clients => {
-  console.log('Joined room ' + currRoom)
-  // start peer connection handshake here
-  // getLocalStream()
+  console.log('Joined room ')
 })
 
 socket.on('accepted', clients => {
-  // start peer connection handshake here
-  // updateChatHead(clients)
+  isInitiator = true
 })
 
 function updateChatHead (client) {
@@ -115,17 +123,22 @@ function sendMessage (message, id) {
 }
 
 socket.on('message', (message, id) => {
-  if (message === 'got user media' && isInitiator) {
-    isChannelReady = true
-    sendNotifications(id, 'joined')
-    maybeStart(id)
+  if (message === 'got user media') {
+    if(localStream === undefined) {
+      isInitiator = false
+      peersInCurrRoom = []
+      getLocalStream()
+    } else {
+      isChannelReady = true
+      start(id, message)
+    }
   } else if (message.type === 'offer' && peersInCurrRoom.indexOf(id) === -1) {
     if (!isInitiator) {
-      isChannelReady = true
-      maybeStart(id, message)
+      start(id, message)
     }
   } else if (message.type === 'answer') {
     pcDictionary[id].setRemoteDescription(new RTCSessionDescription(message))
+    callPeers()
   } else if (message.type === 'candidate') {
     let candidate = new RTCIceCandidate({
       sdpMLineIndex: message.label,
@@ -134,6 +147,13 @@ socket.on('message', (message, id) => {
     pcDictionary[id].addIceCandidate(candidate)
   } else if (message === 'bye') {
     handleRemoteHangup(id)
+  } else if (message === 'call invitation') {
+    callBtn.disabled = true
+    document.getElementById('callInvite').style.display = 'block'
+    document.getElementById('caller').innerText = allClients[id] + ' is calling'
+    currClient = id
+  } else if (message === 'accept call') {
+    getLocalStream()
   }
 })
 
@@ -147,18 +167,17 @@ function getLocalStream () {
 
 function gotStream (stream) {
   localStream = stream
+  localVideo.srcObject = localStream
   sendMessage('got user media')
 }
 
-function  maybeStart (id, message) {
-  if (typeof localStream !== undefined && isChannelReady) {
-    createPeerConnection(id)
-    if (isInitiator) {
-      doCall(id)
-    } else {
-      pcDictionary[id].setRemoteDescription(new RTCSessionDescription(message))
-      doAnswer(id)
-    }
+function start (id, message) {
+  createPeerConnection(id)
+  if (isInitiator) {
+    doCall(id)
+  } else {
+    pcDictionary[id].setRemoteDescription(new RTCSessionDescription(message))
+    doAnswer(id)
   }
 }
 
@@ -175,6 +194,7 @@ function createPeerConnection (id) {
     pcDictionary[id].onaddstream = event => {
       handleRemoteStreamAdded(event, id)
     }
+    pcDictionary[id].addStream(localStream)
     pcDictionary[id].onremovestream = handleRemoteStreamRemoved
     pcDictionary[id].sendChannel = pcDictionary[id].createDataChannel(currRoom)
     pcDictionary[id].sendChannel.onopen = () => {
@@ -215,6 +235,11 @@ function sendCandidates (client) {
 
 function handleRemoteStreamAdded (event, id) {
   remoteStream[id] = event.stream
+  let remoteVideo = document.createElement('video')
+  remoteVideo.setAttribute('autoplay', true)
+  remoteVideo.setAttribute('id', id)
+  remoteVideo.srcObject = remoteStream[id]
+  remoteFeeds.appendChild(remoteVideo)
 }
 
 function handleRemoteStreamRemoved (event) {
@@ -255,14 +280,7 @@ function handleReceiveChannelStateChange (id) {
 
 function sendMsgOverChannel () {
   acceptIncomingMsg(sendData.value)
-  if (Object.keys(pcDictionary).length === 0) { //before peer connection is made
-    console.log(currClient)
-    socket.emit('init', sendData.value, currClient, currRoom)
-  } else {
-    for (key in pcDictionary) {
-      pcDictionary[key].sendChannel.send(sendData.value)
-    }
-  }
+  socket.emit('chat', sendData.value, currClient, currRoom)
 }
 
 function doCall (id) {
@@ -293,6 +311,7 @@ function onCreateSessionDescriptionError (error) {
 
 function handleRemoteHangup (id) {
   console.log('Session terminated.')
+  socket.emit('disconnect', currRoom)
   stop(id)
   isInitiator = false
 }
@@ -308,14 +327,8 @@ function sendNotifications (id, action) {
   document.getElementById('notifications').innerText = 'Client ' + id + ' ' + action
 }
 
-function callPeers () {
-  pcDictionary[id].addStream(localStream)
-  localVideo.srcObject = localStream
-  peersInCurrRoom.forEach(peer => {
-    let remoteVideo = document.createElement('video')
-    remoteVideo.setAttribute('autoplay', true)
-    remoteVideo.setAttribute('id', peer)
-    remoteVideo.srcObject = remoteStream[peer]
-    remoteFeeds.appendChild(remoteVideo)
-  })
+function  callPeers () {
+  if (localStream !== undefined && isChannelReady) {
+    console.log('Initiating call to peers')
+  }
 }
