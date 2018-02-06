@@ -16,7 +16,6 @@ let rooms = {}
 io.on('connection', client => {
   console.log('Connected')
   client.on('set active', name => {
-    console.log('Setting ' + name + ' as active')
     clients[client.id] = {
       clientName: name,
       status: 'active'
@@ -32,15 +31,16 @@ io.on('connection', client => {
     }
   })
   client.on('create', id => {
-    console.log('Received request to create room with ' + id)
-    // creating new room
     let room = uuid()
     rooms[room] = [client.id]
     client.join(room)
     client.emit('created', room, id)
   })
-  client.on('init', (msg, id, room) => {
-    io.sockets.connected[id].emit('invited', room, msg, client.id)
+  client.on('chat', (msg, id, room) => {
+    io.sockets.connected[id].emit('chat text', room, msg, client.id)
+  })
+  client.on('init', (room, id) => {
+    io.sockets.connected[id].emit('init', room)
   })
   client.on('join', room => {
     rooms[room].push(client.id)
@@ -48,11 +48,11 @@ io.on('connection', client => {
     client.emit('joined', rooms[room])
     client.to(room).emit('accepted', rooms[room])
   })
-  // client.on('disconnect', room => {
-  //   let index = rooms[room].indexOf(client)
-  //   if (index !== -1) {
-  //     client.to(room).emit('disconnected', client)
-  //     rooms[room].splice(index, 1)
-  //   }
-  // })
+  client.on('disconnect', id => {
+    let index = rooms[room].indexOf(client)
+    if (index !== -1) {
+      client.to(room).emit('disconnected', client)
+      rooms[room].splice(index, 1)
+    }
+  })
 })
