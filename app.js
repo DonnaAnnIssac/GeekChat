@@ -35,12 +35,15 @@ io.on('connection', client => {
     console.log('Received request to create room with ' + id)
     // creating new room
     let room = uuid()
-    rooms[room] = [client.id, id]
+    rooms[room] = [client.id]
     client.join(room)
-    client.emit('created', room)
-    io.sockets.connected[id].emit('invited', room)
+    client.emit('created', room, id)
+  })
+  client.on('init', (msg, id, room) => {
+    io.sockets.connected[id].emit('invited', room, msg, client.id)
   })
   client.on('join', room => {
+    rooms[room].push(client.id)
     client.join(room)
     client.emit('joined', rooms[room])
     client.to(room).emit('accepted', rooms[room])
