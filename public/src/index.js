@@ -49,6 +49,7 @@ function updateClientList (clientsList) {
       clientDiv.id = client
       clientDiv.addEventListener('click', () => {
         currClient = clientDiv.innerText
+        toggleClientList()
         createRoom(clientDiv.id)
       })
       listOfClients.appendChild(clientDiv)
@@ -209,7 +210,6 @@ function sendCandidates (client) {
 
 function handleRemoteStreamAdded (event, id) {
   remoteStream[id] = event.stream
-  callBtn.disabled = false
 }
 
 function handleRemoteStreamRemoved (event) {
@@ -221,9 +221,11 @@ function handleSendChannelStateChange (sendChannel) {
     sendData.disabled = false
     sendData.focus()
     sendBtn.disabled = false
+    callBtn.disabled = false
   } else {
     sendData.disabled = true
     sendBtn.disabled = true
+    callBtn.disabled = true
   }
 }
 
