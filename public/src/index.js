@@ -1,5 +1,5 @@
 let socket = io.connect()
-let currRoom, currClient, myId, myName
+let currRoom, currClient, myId, myName, group = false
 let listOfClients = document.querySelector('#clientsList')
 
 let sendData = document.getElementById('msg')
@@ -13,7 +13,7 @@ let localStream, remoteStream = {}
 let isChannelReady = false
 let isInitiator = false
 let pcDictionary = {}, peersInCurrRoom = [], candidates = [], allClients = {}
-
+let grpMembers = []
 let constraints = {
   audio: true,
   video: true
@@ -21,15 +21,25 @@ let constraints = {
 sendBtn.disabled = true
 callBtn.disabled = true
 hangBtn.disabled = true
-hangBtn.addEventListener('click', stop(currClient))
 sendBtn.addEventListener('click', sendMsgOverChannel)
 callBtn.addEventListener('click', () => {
   isInitiator = true
   hangBtn.disabled = false
-  peersInCurrRoom = []
   sendMessage('call invitation')
 })
 document.querySelector('#newRoom').addEventListener('click', toggleClientList)
+document.querySelector('#newGroup').addEventListener('click', () => {
+  if (!group) {
+    group = true
+    grpMembers = []
+    document.querySelector('#newGroup').innerText = 'Create'
+    toggleClientList()
+  } else {
+    document.querySelector('#newGroup').innerText = 'New Group'
+    toggleClientList()
+    createRoom(grpMembers)
+  }
+})
 document.getElementById('accept').addEventListener('click', () => {
   document.getElementById('callInvite').style.display = 'none'
   sendMessage('accept call', currClient)
@@ -57,9 +67,13 @@ function updateClientList (clientsList) {
       clientDiv.innerText = clientsList[client].clientName
       clientDiv.id = client
       clientDiv.addEventListener('click', () => {
-        currClient = clientDiv.id
-        toggleClientList()
-        createRoom(clientDiv.id)
+        if (!group) {
+          currClient = clientDiv.id
+          toggleClientList()
+          createRoom(clientDiv.id)
+        } else {
+          grpMembers.push(clientDiv.id)
+        }
       })
       listOfClients.appendChild(clientDiv)
       listOfClients.style.display = 'none'
@@ -83,9 +97,13 @@ socket.on('new peer', clients => {
 socket.on('created', (room, id) => {
   currRoom = room
   updateChatHead(id)
+  if (group) {
+    id.forEach(client => socket.emit('init', room, client))
+  } else {
+    socket.emit('init', room, id)
+  }
   sendBtn.disabled = false
   callBtn.disabled = false
-  socket.emit('init', room, id)
 })
 socket.on('init', room => {
   isInitiator = false
@@ -109,7 +127,12 @@ socket.on('accepted', clients => {
 })
 
 function updateChatHead (client) {
-  document.querySelector('#chatHead').innerText = allClients[client]
+  if (Array.isArray(client)) {
+    let str = client.reduce((string, id) => string + allClients[id], '')
+    document.querySelector('#chatHead').innerText = str
+  } else {
+    document.querySelector('#chatHead').innerText = allClients[client]
+  }
 }
 
 function acceptIncomingMsg (message) {
@@ -126,7 +149,6 @@ socket.on('message', (message, id) => {
   if (message === 'got user media') {
     if(localStream === undefined) {
       isInitiator = false
-      peersInCurrRoom = []
       getLocalStream()
     } else {
       isChannelReady = true
