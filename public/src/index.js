@@ -1,5 +1,7 @@
 let socket = io.connect()
-let currRoom, currClient, myId, myName, group = false
+let currRoom, currClient, myId
+let onCall = false
+let group = false
 let listOfClients = document.querySelector('#clientsList')
 
 let sendData = document.getElementById('msg')
@@ -25,6 +27,7 @@ sendBtn.addEventListener('click', sendMsgOverChannel)
 callBtn.addEventListener('click', () => {
   isInitiator = true
   hangBtn.disabled = false
+  onCall = true
   sendMessage('call invitation')
 })
 document.querySelector('#newRoom').addEventListener('click', toggleClientList)
@@ -41,6 +44,7 @@ document.querySelector('#newGroup').addEventListener('click', () => {
   }
 })
 document.getElementById('accept').addEventListener('click', () => {
+  onCall = true
   document.getElementById('callInvite').style.display = 'none'
   sendMessage('accept call', currClient)
 })
@@ -48,20 +52,18 @@ document.getElementById('decline').addEventListener('click', () => {
   document.getElementById('callInvite').style.display = 'none'
   sendMessage('decline call', currClient)
 })
-//temporary login
+// temporary login
 document.querySelector('button#enterName').addEventListener('click', () => {
-   ('Logging in as ', document.querySelector('input#clientName').value)
   socket.emit('set active', document.querySelector('input#clientName').value)
 })
 
 socket.on('active', (id, name, clientsList) => {
   myId = id
-  myName = name
   updateClientList(clientsList)
 })
 
 function updateClientList (clientsList) {
-  for (client in clientsList) {
+  for (let client in clientsList) {
     if (!allClients.hasOwnProperty(client) && client !== myId) {
       let clientDiv = document.createElement('div')
       clientDiv.innerText = clientsList[client].clientName
@@ -110,13 +112,21 @@ socket.on('init', room => {
   currRoom = room
   socket.emit('join', room)
 })
-socket.on('chat text', (room, msg, from) => {
+socket.on('chat text', (msg, from) => {
+  chatTextHandler(from, [from], msg)
+})
+
+socket.on('group chat text', (clients, msg, from) => {
+  chatTextHandler(from, clients, msg)
+})
+
+function chatTextHandler (from, clients, msg) {
   currClient = from
-  updateChatHead(from)
+  updateChatHead(clients)
   acceptIncomingMsg(msg)
   sendBtn.disabled = false
   callBtn.disabled = false
-})
+}
 
 socket.on('joined', clients => {
   console.log('Joined room ')
@@ -128,7 +138,7 @@ socket.on('accepted', clients => {
 
 function updateChatHead (client) {
   if (Array.isArray(client)) {
-    let str = client.reduce((string, id) => string + allClients[id], '')
+    let str = client.map(id => allClients[id]).join(' ')
     document.querySelector('#chatHead').innerText = str
   } else {
     document.querySelector('#chatHead').innerText = allClients[client]
@@ -146,21 +156,22 @@ function sendMessage (message, id) {
 }
 
 socket.on('message', (message, id) => {
-  if (message === 'got user media') {
-    if(localStream === undefined) {
+  if (message === 'got user media' && onCall) {
+    if (localStream === undefined) { // receiver
       isInitiator = false
       getLocalStream()
-    } else {
+    } else if (peersInCurrRoom.indexOf(id) === -1) { // sender
       isChannelReady = true
+      isInitiator = true
       start(id, message)
     }
   } else if (message.type === 'offer' && peersInCurrRoom.indexOf(id) === -1) {
+    console.log('Received offer first time')
     if (!isInitiator) {
       start(id, message)
     }
   } else if (message.type === 'answer') {
     pcDictionary[id].setRemoteDescription(new RTCSessionDescription(message))
-    callPeers()
   } else if (message.type === 'candidate') {
     let candidate = new RTCIceCandidate({
       sdpMLineIndex: message.label,
@@ -170,12 +181,17 @@ socket.on('message', (message, id) => {
   } else if (message === 'bye') {
     handleRemoteHangup(id)
   } else if (message === 'call invitation') {
+    isInitiator = false
     callBtn.disabled = true
     document.getElementById('callInvite').style.display = 'block'
     document.getElementById('caller').innerText = allClients[id] + ' is calling'
     currClient = id
-  } else if (message === 'accept call') {
-    getLocalStream()
+  } else if (message === 'accept call' && onCall) {
+    if (localStream === undefined) {
+      getLocalStream()
+    } else {
+      sendMessage('got user media')
+    }
   }
 })
 
@@ -195,6 +211,7 @@ function gotStream (stream) {
 
 function start (id, message) {
   createPeerConnection(id)
+  console.log('Initiator' + isInitiator)
   if (isInitiator) {
     doCall(id)
   } else {
@@ -302,7 +319,13 @@ function handleReceiveChannelStateChange (id) {
 
 function sendMsgOverChannel () {
   acceptIncomingMsg(sendData.value)
-  socket.emit('chat', sendData.value, currClient, currRoom)
+  if (currClient !== undefined) {
+    console.log('One on one chat')
+    socket.emit('chat', sendData.value, currClient, currRoom)
+  } else {
+    console.log('group chat')
+    socket.emit('group chat', sendData.value, grpMembers, currRoom)
+  }
 }
 
 function doCall (id) {
@@ -347,10 +370,4 @@ function stop (id) {
 
 function sendNotifications (id, action) {
   document.getElementById('notifications').innerText = 'Client ' + id + ' ' + action
-}
-
-function  callPeers () {
-  if (localStream !== undefined && isChannelReady) {
-    console.log('Initiating call to peers')
-  }
 }
