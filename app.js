@@ -1,44 +1,114 @@
 const express = require('express')
-const app = express()
-const server = require('http').createServer(app)
-const io = require('socket.io')(server)
 const uuid = require('uuid/v4')
+const path = require('path')
+const routes = require('./routes')
 const passport = require('passport')
 const Auth0Strategy = require('passport-auth0')
-app.use(express.static('./node_modules/socket.io-client'))
-app.use(express.static('./public'))
+const cookieParser = require('cookie-parser')
+const bodyParser = require('body-parser')
+const session = require('express-session')
+const dotenv = require('dotenv')
+const flash = require('connect-flash')
 
+dotenv.load()
+let userProfile
 const strategy = new Auth0Strategy(
   {
-    domain: 'videochat-example.auth0.com',
-    clientID: 'qMllgLn5xiIpcpgsAMOF6sTmamaklhr8',
-    clientSecret: 'AsbvIRZlPGW7lTi1CJFSwCzwkFWSmEI6ulMJ3tz4NFEY3u17fH7nIddlO1ypqwGw',
-    callbackURL: 'http://localhost:3000/home'
+    domain: process.env.AUTH0_DOMAIN,
+    clientID: process.env.AUTH0_CLIENT_ID,
+    clientSecret: process.env.AUTH0_CLIENT_SECRET,
+    callbackURL:
+      process.env.AUTH0_CALLBACK_URL || 'http://localhost:9999'
   },
   (accessToken, refreshToken, extraParams, profile, done) => {
+    userProfile = profile
+    console.log(userProfile.displayName)
     return done(null, profile)
   }
 )
 
 passport.use(strategy)
 
+passport.serializeUser((user, done) => {
+  done(null, user)
+})
+
+passport.deserializeUser((user, done) => {
+  done(null, user)
+})
+
+const app = express()
+
+app.use(bodyParser.json())
+app.use(bodyParser.urlencoded({ extended: false }))
+app.use(cookieParser())
+app.use(
+  session({
+    secret: 'shhhhhhhhh',
+    resave: true,
+    saveUninitialized: true
+  })
+)
+app.use(passport.initialize())
+app.use(passport.session())
+app.use(function(req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*")
+  res.header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS')
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, Access-Control-Allow-Credentials")
+  res.header("Access-Control-Allow-Credentials", "true")
+  next()
+})
+app.use('/', routes)
+app.use(express.static(path.join(__dirname, 'node_modules/socket.io-client')))
+app.use(express.static(path.join(__dirname, 'public')))
+app.use(flash())
+
+// Handle auth failure error messages
+app.use((req, res, next) => {
+  if (req && req.query && req.query.error) {
+    req.flash('error', req.query.error)
+  }
+  if (req && req.query && req.query.error_description) {
+    req.flash('error_description', req.query.error_description)
+  }
+  next()
+})
+
+// Check logged in
+app.use((req, res, next) => {
+  res.locals.loggedIn = false
+  if (req.session.passport && typeof req.session.passport.user !== 'undefined') {
+    res.locals.loggedIn = true
+  }
+  next()
+})
+
+// catch 404 and forward to error handler
+app.use((req, res, next) => {
+  const err = new Error('Not Found')
+  err.status = 404
+  next(err)
+})
+
+const server = require('http').createServer(app)
 server.listen(9999, () => {
   console.log('Listening on 9999')
 })
 
+const io = require('socket.io')(server)
 let clients = {}
 let rooms = {}
 
 io.on('connection', client => {
   console.log('Connected')
-  client.on('set active', name => {
+  if (userProfile !== undefined) {
     clients[client.id] = {
-      clientName: name,
+      clientName: userProfile.displayName,
       status: 'active'
     }
-    client.emit('active', client.id, name, clients)
+    client.emit('active', client.id, userProfile.displayName, clients)
     client.broadcast.emit('new peer', clients)
-  })
+  }
   client.on('message', (message, room, id) => {
     if (id === null) {
       client.to(room).emit('message', message, client.id)
@@ -58,7 +128,6 @@ io.on('connection', client => {
   client.on('join', room => {
     rooms[room].push(client.id)
     client.join(room)
-    client.emit('joined', rooms[room])
     client.to(room).emit('accepted', rooms[room])
   })
   client.on('chat', (msg, id, room) => {
