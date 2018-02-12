@@ -4,7 +4,7 @@
   "description": "A video chat app built using webRTC APIs, socket.io and Express",
   "main": "app.js",
   "scripts": {
-    "start": "node app.js"
+    "start": "node lib/app.js"
   },
   "keywords": [
     "Video",
