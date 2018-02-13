@@ -17,15 +17,19 @@ hangBtn.disabled = true
 
 sendBtn.addEventListener('click', sendMsgOverChannel)
 callBtn.addEventListener('click', () => {
-  hangBtn.disabled = false
+  callBtn.disabled = true
   handshake.isInitiator = true
   handshake.onCall = true
   sendMessage('call invitation')
 })
+hangBtn.addEventListener('click', () => {
+  stop()
+  sendMessage('bye')
+})
 document.querySelector('#newRoom').addEventListener('click', toggleClientList)
 document.querySelector('#newGroup').addEventListener('click', createGroup)
 document.getElementById('accept').addEventListener('click', () => {
-  callBtn.disabled = false
+  callBtn.disabled = true
   sendBtn.disabled = false
   hangBtn.disabled = false
   document.getElementById('callInvite').style.display = 'none'
@@ -38,7 +42,6 @@ document.getElementById('decline').addEventListener('click', () => {
 })
 
 socket.on('active', (id, name, clientsList) => {
-  console.log('Active')
   myId = id
   document.getElementById('welcome').innerText = name
   updateClientList(clientsList)
@@ -56,13 +59,14 @@ function createGroup () {
     createRoom(grpMembers)
   }
 }
+
 function updateClientList (clientsList) {
   for (let client in clientsList) {
     if (!allClients.hasOwnProperty(client) && client !== myId) {
       let clientDiv = document.createElement('div')
       clientDiv.innerText = clientsList[client].clientName
-      clientDiv.id = client
-      clientDiv.addEventListener('click', () => updateCurrOrGroup(clientDiv.id))
+      // clientDiv.id = client
+      clientDiv.addEventListener('click', () => updateCurrOrGroup(client))
       listOfClients.appendChild(clientDiv)
       listOfClients.style.display = 'none'
       allClients[client] = clientsList[client].clientName
@@ -94,7 +98,6 @@ socket.on('new peer', clients => {
 
 socket.on('created', (room, id) => {
   updateChatHead(id)
-  console.log('Room ', room)
   handshake.currRoom = room
   if (handshake.group) {
     id.forEach(client => socket.emit('init', room, client))
@@ -108,7 +111,6 @@ socket.on('created', (room, id) => {
 socket.on('init', room => {
   handshake.isInitiator = false
   handshake.currRoom = room
-  console.log('Room ', room)
   socket.emit('join', room)
 })
 socket.on('chat text', (msg, from) => {
@@ -136,7 +138,6 @@ function updateChatHead (client) {
     let str = client.map(id => allClients[id]).join(' ')
     document.querySelector('#chatHead').innerText = str
   } else {
-    console.log('Updating chat head')
     document.querySelector('#chatHead').innerText = allClients[client]
   }
 }
@@ -169,6 +170,7 @@ socket.on('message', (message, id) => {
     document.getElementById('caller').innerText = allClients[id] + ' is calling'
     this.currClient = id
   } else if (message === 'accept call' && handshake.onCall) {
+    hangBtn.disabled = false
     if (handshake.localStream === null) {
       handshake.getLocalStream(onLocalStream)
     } else {
@@ -176,6 +178,7 @@ socket.on('message', (message, id) => {
     }
   } else if (message === 'decline call') {
     hangBtn.disabled = true
+    callBtn.disabled = false
     alert('Call declined')
   }
 })
@@ -194,16 +197,30 @@ function onRemoteStream (remoteStream, id) {
 }
 
 function handleRemoteHangup (id) {
-  console.log('Session terminated.')
-  // socket.emit('disconnect', currRoom)
-  stop(id)
-  this.isInitiator = false
+  if (handshake.peersInCurrRoom.length === 1) {
+    stop()
+  } else {
+    removePeer(id)
+  }
 }
 
-function stop (id) {
-  this.pcDictionary[id].close()
+function stop () {
+  hangBtn.disabled = true
+  handshake.onCall = false
+  callBtn.disabled = false
+  for (let id in handshake.pcDictionary) {
+    removePeer(id)
+  }
+  document.querySelector('#localVideo').srcObject = null
+}
+
+function removePeer (id) {
   let disconnectedPeer = document.getElementById(id)
-  disconnectedPeer.parentNode.removeChild(disconnectedPeer)
+  disconnectedPeer.srcObject = null
+  document.querySelector('#remoteFeeds').removeChild(disconnectedPeer)
+  handshake.pcDictionary[id].close()
+  delete handshake.pcDictionary[id]
+  handshake.peersInCurrRoom.splice(handshake.peersInCurrRoom.indexOf(id), 1)
 }
 
 window.onbeforeunload = function () {
