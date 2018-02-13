@@ -10,8 +10,6 @@ let handshake = {
   pcDictionary: {},
   peersInCurrRoom: [],
   candidates: [],
-  allClients: {},
-  grpMembers: [],
   constraints: {
     audio: true,
     video: true
