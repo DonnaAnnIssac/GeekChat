@@ -10,6 +10,66 @@ body {
     display: flex;
 }
 
+#sideBar {
+    flex: 1;
+    display: flex;
+    background-color: #464749;
+    flex-direction: column;
+}
+
+#chatWindow {
+    flex: 5;
+    display: flex;
+    flex-direction: column;
+}
+
+#userInfo {
+    display: flex;
+}
+
+#welcome {
+    color: #ec9d90;
+    padding: 10px;
+    font-size: x-large;
+}
+
+.new {
+    display: flex;
+    cursor: pointer;
+    color: #ffffff;
+    padding: 6;
+    opacity: 0.8;
+}
+
+.new:hover > div {
+    opacity: 0.5;
+}
+.new:hover > div:hover {
+    opacity: 1.0;
+}
+
+#newRoom {
+    margin: 0 6;
+}
+
+#newGroup {
+    margin: 0 6;
+}
+
+#clientList {
+    color: #ffffff;
+}
+
+#chatHead {
+    padding: 10px;
+    background-color: #464749;
+    color: #ec9d90;
+}
+
+.videoStreams {
+    display: none;
+}
+
 .popUp {
     display: none; /* Hidden by default */
     position: fixed; /* Stay in place */
