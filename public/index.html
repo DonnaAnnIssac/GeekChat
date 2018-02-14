@@ -7,16 +7,24 @@
     <body>
         <div id="parentContainer">
             <div id="sideBar">
-                <div id="welcome"></div>
-                <button id="newRoom">New DM</button>
-                <button id="newGroup">New Group</button>
+                <div id="userInfo">
+                    <img>
+                    <div id="welcome"></div>
+                </div>
+                <div class="new">
+                    <div id="newRoom">New DM</div>
+                    <div id="newGroup">New Group</div>
+                </div>
                 <div id="clientsList"></div>
                 <div id="myRooms"></div>
             </div>
             <div id="chatWindow">
                 <div id="chatHead"></div>
-                <div id="notifications"></div>
-                <div id="remoteFeeds"></div>
+                <!-- <div id="notifications"></div> -->
+                <div class="videoStreams">
+                    <div id="remoteFeeds"></div>
+                    <video id="localVideo" autoplay></video>
+                </div>
                 <div id="callInvite" class="popUp">
                     <div class="modalContent">
                         <span class="close">(x)</span>
@@ -27,7 +35,6 @@
                         </div>
                     </div>
                 </div>
-                <video id="localVideo" autoplay></video>
                 <div id="chat">
                     <div id="incomingMsg"></div>
                     <input id="msg"/>
