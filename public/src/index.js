@@ -41,9 +41,12 @@ document.getElementById('decline').addEventListener('click', () => {
   sendMessage('decline call', handshake.currClient)
 })
 
-socket.on('active', (id, name, clientsList) => {
+socket.on('active', (id, clientsList) => {
   myId = id
-  document.getElementById('welcome').innerText = name
+  document.getElementById('welcome').innerText = clientsList[myId].clientName
+  document.querySelector('img').src = clientsList[myId].picture
+  document.querySelector('img').height = '60'
+  document.querySelector('img').weight = '60'
   updateClientList(clientsList)
 })
 
@@ -54,6 +57,7 @@ function createGroup () {
     document.querySelector('#newGroup').innerText = 'Create'
     toggleClientList()
   } else {
+    handshake.group = false
     document.querySelector('#newGroup').innerText = 'New Group'
     toggleClientList()
     createRoom(grpMembers)
@@ -65,7 +69,6 @@ function updateClientList (clientsList) {
     if (!allClients.hasOwnProperty(client) && client !== myId) {
       let clientDiv = document.createElement('div')
       clientDiv.innerText = clientsList[client].clientName
-      // clientDiv.id = client
       clientDiv.addEventListener('click', () => updateCurrOrGroup(client))
       listOfClients.appendChild(clientDiv)
       listOfClients.style.display = 'none'
@@ -184,6 +187,7 @@ socket.on('message', (message, id) => {
 })
 
 function onLocalStream (localStream) {
+  document.querySelector('.videoStreams').style.display = 'flex'
   localVideo.srcObject = localStream
   sendMessage('got user media')
 }
@@ -212,6 +216,7 @@ function stop () {
     removePeer(id)
   }
   document.querySelector('#localVideo').srcObject = null
+  document.querySelector('.videoStreams').style.display = 'none'
 }
 
 function removePeer (id) {
