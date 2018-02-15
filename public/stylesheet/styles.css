@@ -21,6 +21,7 @@ body {
     flex: 5;
     display: flex;
     flex-direction: column;
+    background-color: #d0d1d4;
 }
 
 #userInfo {
@@ -56,21 +57,34 @@ body {
     margin: 0 6;
 }
 
-#clientList {
-    color: #ffffff;
+#clientsList {
+    background-color: #ffffff;
+    color: #464749;
 }
 
 #chatHead {
     padding: 10px;
     background-color: #464749;
-    color: #ec9d90;
+    color: #ffffff;
+    text-align: center;
+    flex: 1;
 }
 
 .videoStreams {
     display: none;
+    flex: 10;
 }
 
+#remoteFeeds {
+    display: flex;
+}
+ #incomingMsg {
+    flex: 10;
+    display: flex;
+    flex-direction: column-reverse;
+ }
 .popUp {
+    flex: 2;
     display: none; /* Hidden by default */
     position: fixed; /* Stay in place */
     z-index: 1; /* Sit on top */
@@ -103,4 +117,21 @@ body {
     color: #000;
     text-decoration: none;
     cursor: pointer;
+}
+
+#chat {
+    align-items: flex-end;
+    flex: 1;
+}
+
+.toMe {
+    width: max-content;
+    padding: 3px;
+    align-self: flex-start;
+}
+
+.fromMe {
+    width: max-content;
+    padding: 3px;
+    align-self: flex-end
 }
