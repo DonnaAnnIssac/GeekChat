@@ -1,6 +1,5 @@
 import { handshake } from './handshake.js'
 let socket = io.connect()
-let myId, myName, allClients = {}
 let listOfClients = document.querySelector('#clientsList')
 let sendData = document.getElementById('msg')
 let sendBtn = document.getElementById('sendMsg')
@@ -9,8 +8,11 @@ let callBtn = document.getElementById('callButton')
 let hangBtn = document.getElementById('hangupButton')
 let localVideo = document.querySelector('#localVideo')
 let remoteFeeds = document.querySelector('#remoteFeeds')
-let grpMembers = []
+let myId, myName
 let create = false
+let allClients = {}
+let grpMembers = []
+let updatedRoom = null
 sendBtn.disabled = true
 callBtn.disabled = true
 hangBtn.disabled = true
@@ -83,7 +85,7 @@ function toggleClientList () {
 }
 
 function updateCurrOrGroup (id) {
-    grpMembers.push(id)
+  grpMembers.push(id)
 }
 
 function createRoom (id) {
@@ -105,6 +107,7 @@ socket.on('created', (room, id) => {
 
 socket.on('init', room => {
   handshake.isInitiator = false
+  handshake.currRoom = room
   socket.emit('join', room)
 })
 
@@ -120,9 +123,11 @@ function chatTextHandler (from, clients, msg, room) {
   sendBtn.disabled = false
   callBtn.disabled = false
   handshake.currClient = from
-  updateChatHead(clients)
-  clearChatWindow(room)
-  handshake.currRoom = room
+  if (updatedRoom !== room) {
+    updateChatHead(clients)
+    clearChatWindow(room)
+    updatedRoom = room
+  }
   acceptIncomingMsg(msg, 'toMe', allClients[from], room)
 }
 
@@ -136,7 +141,6 @@ function updateChatHead (client) {
 }
 
 function clearChatWindow (room) {
-  console.log(handshake.currRoom, room)
   if (handshake.currRoom !== room) {
     while (incomingMsg.firstChild) {
       incomingMsg.removeChild(incomingMsg.firstChild)
@@ -145,6 +149,7 @@ function clearChatWindow (room) {
 }
 
 function acceptIncomingMsg (message, clsName, sender, room) {
+  handshake.currRoom = room
   let msg = document.createElement('div')
   msg.innerText = message
   if (handshake.group && sender !== myName) {
@@ -183,7 +188,7 @@ socket.on('message', (message, id) => {
     callBtn.disabled = true
     document.getElementById('callInvite').style.display = 'block'
     document.getElementById('caller').innerText = allClients[id] + ' is calling'
-    this.currClient = id
+    handshake.currClient = id
   } else if (message === 'accept call' && handshake.onCall) {
     hangBtn.disabled = false
     if (handshake.localStream === null) {
@@ -199,9 +204,8 @@ socket.on('message', (message, id) => {
 })
 
 function onLocalStream (localStream) {
-  document.querySelector('.videoStreams').style.display = 'block'
+  document.querySelector('.videoStreams').style.display = 'flex'
   localVideo.srcObject = localStream
-  localVideo.style.width = '100%'
   sendMessage('got user media')
 }
 
@@ -210,8 +214,16 @@ function onRemoteStream (remoteStream, id) {
   remoteVideo.setAttribute('autoplay', true)
   remoteVideo.setAttribute('id', id)
   remoteVideo.srcObject = remoteStream
-  remoteVideo.style.flex = '1'
   remoteFeeds.appendChild(remoteVideo)
+  incomingMsg.style.flex = '2'
+  if (remoteFeeds.childElementCount === 1) {
+    remoteVideo.style.flex = '1'
+  } else {
+    let children = remoteFeeds.childNodes
+    for (let i = 0; i < children.length; i++) {
+      children[i].style.flex = '1'
+    }
+  }
 }
 
 function handleRemoteHangup (id) {
@@ -231,7 +243,9 @@ function stop () {
     removePeer(id)
   }
   localVideo.srcObject = null
+  handshake.localStream.getTracks().forEach(track => track.stop())
   document.querySelector('.videoStreams').style.display = 'none'
+  incomingMsg.style.flex = '10'
 }
 
 function removePeer (id) {
@@ -240,6 +254,7 @@ function removePeer (id) {
   document.querySelector('#remoteFeeds').removeChild(disconnectedPeer)
   handshake.pcDictionary[id].close()
   delete handshake.pcDictionary[id]
+  handshake.remoteStream[id].getTracks().forEach(track => track.stop())
   handshake.peersInCurrRoom.splice(handshake.peersInCurrRoom.indexOf(id), 1)
 }
 
