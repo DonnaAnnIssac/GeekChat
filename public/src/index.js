@@ -96,6 +96,7 @@ socket.on('new peer', clients => {
 
 socket.on('created', (room, id) => {
   updateChatHead(id)
+  clearChatWindow(room)
   handshake.currRoom = room
   id.forEach(client => socket.emit('init', room, client))
   sendBtn.disabled = false
@@ -104,24 +105,25 @@ socket.on('created', (room, id) => {
 
 socket.on('init', room => {
   handshake.isInitiator = false
-  handshake.currRoom = room
   socket.emit('join', room)
 })
 
-socket.on('group chat text', (clients, msg, from) => {
+socket.on('group chat text', (clients, msg, from, room) => {
   handshake.group = true
   grpMembers = clients
   if (from !== myId) {
-    chatTextHandler(from, clients, msg)
+    chatTextHandler(from, clients, msg, room)
   }
 })
 
-function chatTextHandler (from, clients, msg) {
+function chatTextHandler (from, clients, msg, room) {
   sendBtn.disabled = false
   callBtn.disabled = false
   handshake.currClient = from
   updateChatHead(clients)
-  acceptIncomingMsg(msg, 'toMe', allClients[from])
+  clearChatWindow(room)
+  handshake.currRoom = room
+  acceptIncomingMsg(msg, 'toMe', allClients[from], room)
 }
 
 socket.on('accepted', clients => {
@@ -129,11 +131,20 @@ socket.on('accepted', clients => {
 })
 
 function updateChatHead (client) {
-    let str = client.map(id => allClients[id]).join(' ')
-    document.querySelector('#chatHead').innerText = str
+  let str = client.map(id => allClients[id]).join(' ')
+  document.querySelector('#chatHead').innerText = str
 }
 
-function acceptIncomingMsg (message, clsName, sender) {
+function clearChatWindow (room) {
+  console.log(handshake.currRoom, room)
+  if (handshake.currRoom !== room) {
+    while (incomingMsg.firstChild) {
+      incomingMsg.removeChild(incomingMsg.firstChild)
+    }
+  }
+}
+
+function acceptIncomingMsg (message, clsName, sender, room) {
   let msg = document.createElement('div')
   msg.innerText = message
   if (handshake.group && sender !== myName) {
@@ -147,7 +158,7 @@ function acceptIncomingMsg (message, clsName, sender) {
     incomingMsg.appendChild(grpMsg)
   } else {
     msg.className = clsName
-    msg.style.backgroundColor = '#ffcec0'
+    msg.style.backgroundColor = 'white'
     incomingMsg.appendChild(msg)
   }
 }
@@ -237,6 +248,6 @@ window.onbeforeunload = function () {
 }
 
 function sendMsgToRoom () {
-  acceptIncomingMsg(sendData.value, 'fromMe', myName)
+  acceptIncomingMsg(sendData.value, 'fromMe', myName, handshake.currRoom)
   socket.emit('group chat', sendData.value, grpMembers, handshake.currRoom)
 }
