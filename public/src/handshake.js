@@ -3,7 +3,7 @@ let handshake = {
   currClient: null,
   myId: null,
   onCall: false,
-  group:  false,
+  group: false,
   localStream: null,
   remoteStream: {},
   isInitiator: false,
@@ -12,7 +12,7 @@ let handshake = {
   candidates: [],
   constraints: {
     audio: true,
-    video: true
+    video: {width: 200, height: 200}
   },
   gotStream: function (stream) {
     this.localStream = stream
