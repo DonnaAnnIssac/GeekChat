@@ -63,7 +63,7 @@ body {
 }
 
 #chatHead {
-    padding: 10px;
+    padding: 5px;
     background-color: #464749;
     color: #ffffff;
     text-align: center;
@@ -73,16 +73,27 @@ body {
 .videoStreams {
     display: none;
     flex: 10;
+    flex-direction: column;
+    background-color: #ffffff;
 }
 
 #remoteFeeds {
+    width: 100%;
     display: flex;
+    flex-wrap: wrap;
 }
- #incomingMsg {
+
+#localFeed {
+    display: flex;
+    align-self: center;
+}
+
+#incomingMsg {
     flex: 10;
     display: flex;
-    flex-direction: column-reverse;
- }
+    flex-direction: column;
+}
+
 .popUp {
     flex: 2;
     display: none; /* Hidden by default */
@@ -120,6 +131,7 @@ body {
 }
 
 #chat {
+    width: 100%;
     align-items: flex-end;
     flex: 1;
 }
@@ -134,4 +146,8 @@ body {
     width: max-content;
     padding: 3px;
     align-self: flex-end
+}
+
+#msg {
+    width: 80.9%;
 }
