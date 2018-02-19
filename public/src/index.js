@@ -31,6 +31,9 @@ hangBtn.addEventListener('click', () => {
   sendMessage('bye')
 })
 
+document.querySelector('#logout').addEventListener('click', () => {
+  socket.emit('disconnect')
+})
 document.querySelector('#newRoom').addEventListener('click', createGroup)
 
 document.getElementById('accept').addEventListener('click', () => {
