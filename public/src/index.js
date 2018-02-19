@@ -18,17 +18,21 @@ callBtn.disabled = true
 hangBtn.disabled = true
 
 sendBtn.addEventListener('click', sendMsgToRoom)
+
 callBtn.addEventListener('click', () => {
   callBtn.disabled = true
   handshake.isInitiator = true
   handshake.onCall = true
   sendMessage('call invitation')
 })
+
 hangBtn.addEventListener('click', () => {
   stop()
   sendMessage('bye')
 })
+
 document.querySelector('#newRoom').addEventListener('click', createGroup)
+
 document.getElementById('accept').addEventListener('click', () => {
   callBtn.disabled = true
   sendBtn.disabled = false
@@ -37,9 +41,21 @@ document.getElementById('accept').addEventListener('click', () => {
   handshake.onCall = true
   sendMessage('accept call', handshake.currClient)
 })
+
 document.getElementById('decline').addEventListener('click', () => {
   document.getElementById('callInvite').style.display = 'none'
   sendMessage('decline call', handshake.currClient)
+})
+
+sendData.addEventListener('click', () => {
+  sendData.value = ''
+})
+
+sendData.addEventListener('keypress', (e) => {
+  if (e.keyCode === 13) {
+    sendMsgToRoom()
+    sendData.value = ''
+  }
 })
 
 socket.on('active', (id, clientsList) => {
@@ -184,22 +200,11 @@ socket.on('message', (message, id) => {
   } else if (message === 'bye') {
     handleRemoteHangup(id)
   } else if (message === 'call invitation') {
-    handshake.isInitiator = false
-    callBtn.disabled = true
-    document.getElementById('callInvite').style.display = 'block'
-    document.getElementById('caller').innerText = allClients[id] + ' is calling'
-    handshake.currClient = id
+    onInvite(id)
   } else if (message === 'accept call' && handshake.onCall) {
-    hangBtn.disabled = false
-    if (handshake.localStream === null) {
-      handshake.getLocalStream(onLocalStream)
-    } else {
-      sendMessage('got user media')
-    }
+    onAccept()
   } else if (message === 'decline call') {
-    hangBtn.disabled = true
-    callBtn.disabled = false
-    alert('Call declined')
+    onDecline()
   }
 })
 
@@ -233,6 +238,29 @@ function handleRemoteHangup (id) {
   } else {
     removePeer(id)
   }
+}
+
+function onInvite (id) {
+  handshake.isInitiator = false
+  callBtn.disabled = true
+  document.getElementById('callInvite').style.display = 'block'
+  document.getElementById('caller').innerText = allClients[id] + ' is calling'
+  handshake.currClient = id
+}
+
+function onAccept () {
+  hangBtn.disabled = false
+  if (handshake.localStream === null) {
+    handshake.getLocalStream(onLocalStream)
+  } else {
+    sendMessage('got user media')
+  }
+}
+
+function onDecline () {
+  hangBtn.disabled = true
+  callBtn.disabled = false
+  alert('Call declined')
 }
 
 function stop () {
