@@ -8,6 +8,7 @@ let callBtn = document.getElementById('callButton')
 let hangBtn = document.getElementById('hangupButton')
 let localVideo = document.querySelector('#localVideo')
 let remoteFeeds = document.querySelector('#remoteFeeds')
+let appData = {}
 let myId, myName
 let create = false
 let allClients = {}
@@ -77,6 +78,26 @@ socket.on('active', (id, clientsList) => {
   document.querySelector('img').weight = '60'
   updateClientList(clientsList)
 })
+
+function processUser (user) {
+  appData.myId = user.id
+  appData.myName = user.name
+  document.getElementById('welcome').innerText = user.name
+  document.querySelector('img').src = user.picture
+  document.querySelector('img').height = '60'
+  document.querySelector('img').weight = '60'
+  // updateClientList(clientsList)
+}
+
+let xhr = new XMLHttpRequest()
+xhr.open('GET', '/api/me')
+xhr.onreadystatechange = function () {
+  if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+    console.log(xhr.responseText)
+    processUser(JSON.parse(xhr.responseText))
+  }
+}
+xhr.send()
 
 function createGroup () {
   if (!create) {
