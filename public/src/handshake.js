@@ -56,11 +56,11 @@ let handshake = {
   handleIceCandidate: function (event, id, sendMessage) {
     if (event.candidate) {
       this.candidates.push({
-      type: 'candidate',
-      label: event.candidate.sdpMLineIndex,
-      id: event.candidate.sdpMid,
-      candidate: event.candidate.candidate,
-      foundation: event.candidate.foundation
+        type: 'candidate',
+        label: event.candidate.sdpMLineIndex,
+        id: event.candidate.sdpMid,
+        candidate: event.candidate.candidate,
+        foundation: event.candidate.foundation
       })
     } else {
       this.sendCandidates(id, sendMessage)
