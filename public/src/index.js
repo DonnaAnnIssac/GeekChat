@@ -9,7 +9,6 @@ let hangBtn = document.getElementById('hangupButton')
 let localVideo = document.querySelector('#localVideo')
 let remoteFeeds = document.querySelector('#remoteFeeds')
 let appData = {}
-let myId, myName
 let create = false
 let allClients = {}
 let grpMembers = []
@@ -18,19 +17,23 @@ sendBtn.disabled = true
 callBtn.disabled = true
 hangBtn.disabled = true
 
+sendData.addEventListener('click', () => {
+  sendData.value = ''
+})
+
+function sendMsgToRoom () {
+  acceptIncomingMsg(sendData.value, 'fromMe', appData.myName, handshake.currRoom)
+  socket.emit('group chat', sendData.value, grpMembers, handshake.currRoom, appData.myId)
+}
+
+sendData.addEventListener('keypress', (e) => {
+  if (e.keyCode === 13) {
+    sendMsgToRoom()
+    sendData.value = ''
+  }
+})
+
 sendBtn.addEventListener('click', sendMsgToRoom)
-
-callBtn.addEventListener('click', () => {
-  callBtn.disabled = true
-  handshake.isInitiator = true
-  handshake.onCall = true
-  sendMessage('call invitation')
-})
-
-hangBtn.addEventListener('click', () => {
-  stop()
-  sendMessage('bye')
-})
 
 document.querySelector('#logout').addEventListener('click', () => {
   socket.disconnect()
@@ -42,62 +45,14 @@ socket.on('disconnected', id => {
   listOfClients.removeChild(document.getElementById(id))
 })
 
-document.querySelector('#newRoom').addEventListener('click', createGroup)
-
-document.getElementById('accept').addEventListener('click', () => {
-  callBtn.disabled = true
-  sendBtn.disabled = false
-  hangBtn.disabled = false
-  document.getElementById('callInvite').style.display = 'none'
-  handshake.onCall = true
-  sendMessage('accept call', handshake.currClient)
-})
-
-document.getElementById('decline').addEventListener('click', () => {
-  document.getElementById('callInvite').style.display = 'none'
-  sendMessage('decline call', handshake.currClient)
-})
-
-sendData.addEventListener('click', () => {
-  sendData.value = ''
-})
-
-sendData.addEventListener('keypress', (e) => {
-  if (e.keyCode === 13) {
-    sendMsgToRoom()
-    sendData.value = ''
-  }
-})
-
-socket.on('active', (id, clientsList) => {
-  myId = id
-  myName = clientsList[myId].clientName
-  document.getElementById('welcome').innerText = clientsList[myId].clientName
-  document.querySelector('img').src = clientsList[myId].picture
-  document.querySelector('img').height = '60'
-  document.querySelector('img').weight = '60'
-  updateClientList(clientsList)
-})
-
-function processUser (user) {
-  appData.myId = user.id
-  appData.myName = user.name
-  document.getElementById('welcome').innerText = user.name
-  document.querySelector('img').src = user.picture
-  document.querySelector('img').height = '60'
-  document.querySelector('img').weight = '60'
-  // updateClientList(clientsList)
+function createRoom (members) {
+  members.push(appData.myId)
+  socket.emit('create', members)
 }
 
-let xhr = new XMLHttpRequest()
-xhr.open('GET', '/api/me')
-xhr.onreadystatechange = function () {
-  if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
-    console.log(xhr.responseText)
-    processUser(JSON.parse(xhr.responseText))
-  }
+function toggleClientList () {
+  listOfClients.style.display = (listOfClients.style.display === 'block') ? 'none' : 'block'
 }
-xhr.send()
 
 function createGroup () {
   if (!create) {
@@ -114,44 +69,54 @@ function createGroup () {
   }
 }
 
-function updateClientList (clientsList) {
-  for (let client in clientsList) {
-    if (!allClients.hasOwnProperty(client) && client !== myId) {
-      let clientDiv = document.createElement('div')
-      clientDiv.innerText = clientsList[client].clientName
-      clientDiv.id = client
-      clientDiv.addEventListener('click', () => updateCurrOrGroup(client))
-      listOfClients.appendChild(clientDiv)
-      listOfClients.style.display = 'none'
-      allClients[client] = clientsList[client].clientName
-    }
-  }
-}
-
-function toggleClientList () {
-  listOfClients.style.display = (listOfClients.style.display === 'block') ? 'none' : 'block'
-}
+document.querySelector('#newRoom').addEventListener('click', createGroup)
 
 function updateCurrOrGroup (id) {
   grpMembers.push(id)
 }
 
-function createRoom (id) {
-  socket.emit('create', id)
+function updateClientList (clientsList) {
+  for (let client in clientsList) {
+    if (!allClients.hasOwnProperty(client) && client !== appData.myId) {
+      let clientDiv = document.createElement('div')
+      clientDiv.innerText = clientsList[client]
+      clientDiv.id = client
+      clientDiv.addEventListener('click', () => updateCurrOrGroup(client))
+      listOfClients.appendChild(clientDiv)
+      listOfClients.style.display = 'none'
+      allClients[client] = clientsList[client]
+    }
+  }
 }
 
 socket.on('new peer', clients => {
   updateClientList(clients)
 })
 
-socket.on('created', (room, id) => {
-  updateChatHead(id)
-  clearChatWindow(room)
-  handshake.currRoom = room
-  id.forEach(client => socket.emit('init', room, client))
-  sendBtn.disabled = false
-  callBtn.disabled = false
+socket.on('clients', clients => {
+  updateClientList(clients)
 })
+
+function processUser (user) {
+  appData.myId = user.id
+  appData.myName = user.name
+  document.getElementById('welcome').innerText = user.name
+  document.querySelector('img').src = user.picture
+  document.querySelector('img').height = '60'
+  document.querySelector('img').weight = '60'
+  socket.emit('active', appData.myId, appData.myName)
+}
+
+window.onload = () => {
+  let xhr = new XMLHttpRequest()
+  xhr.open('GET', '/api/me')
+  xhr.onreadystatechange = function () {
+    if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
+      processUser(JSON.parse(xhr.responseText))
+    }
+  }
+  xhr.send()
+}
 
 socket.on('init', room => {
   handshake.isInitiator = false
@@ -159,32 +124,10 @@ socket.on('init', room => {
   socket.emit('join', room)
 })
 
-socket.on('group chat text', (clients, msg, from, room) => {
-  handshake.group = true
-  grpMembers = clients
-  if (from !== myId) {
-    chatTextHandler(from, clients, msg, room)
-  }
-})
-
-function chatTextHandler (from, clients, msg, room) {
-  sendBtn.disabled = false
-  callBtn.disabled = false
-  handshake.currClient = from
-  if (updatedRoom !== room) {
-    updateChatHead(clients)
-    clearChatWindow(room)
-    updatedRoom = room
-  }
-  acceptIncomingMsg(msg, 'toMe', allClients[from], room)
-}
-
-socket.on('accepted', clients => {
-  handshake.isInitiator = true
-})
-
-function updateChatHead (client) {
-  let str = client.map(id => allClients[id]).join(' ')
+function updateChatHead (clients) {
+  let str = clients.map(id => {
+    if (id !== appData.myId) return allClients[id]
+  }).join(' ')
   document.querySelector('#chatHead').innerText = str
 }
 
@@ -196,11 +139,26 @@ function clearChatWindow (room) {
   }
 }
 
+socket.on('accepted', clients => {
+  handshake.isInitiator = true
+})
+
+socket.on('created', (room, members) => {
+  updateChatHead(members)
+  clearChatWindow(room)
+  handshake.currRoom = room
+  members.forEach(member => {
+    if (member !== appData.myId) socket.emit('init', room, member)
+  })
+  sendBtn.disabled = false
+  callBtn.disabled = false
+})
+
 function acceptIncomingMsg (message, clsName, sender, room) {
   handshake.currRoom = room
   let msg = document.createElement('div')
   msg.innerText = message
-  if (handshake.group && sender !== myName) {
+  if (handshake.group && sender !== appData.myName) {
     let sentBy = document.createElement('div')
     sentBy.innerText = sender
     let grpMsg = document.createElement('div')
@@ -216,29 +174,78 @@ function acceptIncomingMsg (message, clsName, sender, room) {
   }
 }
 
+function chatTextHandler (from, clients, msg, room) {
+  sendBtn.disabled = false
+  callBtn.disabled = false
+  handshake.currClient = from
+  if (updatedRoom !== room) {
+    updateChatHead(clients)
+    clearChatWindow(room)
+    updatedRoom = room
+  }
+  acceptIncomingMsg(msg, 'toMe', allClients[from], room)
+}
+
+socket.on('group chat text', (clients, msg, from, room) => {
+  handshake.group = true
+  grpMembers = clients
+  if (from !== appData.myId) {
+    chatTextHandler(from, clients, msg, room)
+  }
+})
+
+document.getElementById('accept').addEventListener('click', () => {
+  callBtn.disabled = true
+  sendBtn.disabled = false
+  hangBtn.disabled = false
+  document.getElementById('callInvite').style.display = 'none'
+  handshake.onCall = true
+  sendMessage('accept call', handshake.currClient)
+})
+
+document.getElementById('decline').addEventListener('click', () => {
+  document.getElementById('callInvite').style.display = 'none'
+  sendMessage('decline call', handshake.currClient)
+})
+
+callBtn.addEventListener('click', () => {
+  callBtn.disabled = true
+  handshake.isInitiator = true
+  handshake.onCall = true
+  sendMessage('call invitation')
+})
+
+hangBtn.addEventListener('click', () => {
+  stop()
+  sendMessage('bye')
+})
+
 function sendMessage (message, id) {
   socket.emit('message', message, handshake.currRoom, id)
 }
 
-socket.on('message', (message, id) => {
-  if (message === 'got user media' && handshake.onCall) {
-    handshake.onUsrMedia(id, message, onLocalStream, sendMessage, onRemoteStream)
-  } else if (message.type === 'offer' && handshake.peersInCurrRoom.indexOf(id) === -1) {
-    handshake.onOffer(id, message, sendMessage, onRemoteStream)
-  } else if (message.type === 'answer') {
-    handshake.onAnswer(id, message)
-  } else if (message.type === 'candidate') {
-    handshake.onCandidate(id, message)
-  } else if (message === 'bye') {
-    handleRemoteHangup(id)
-  } else if (message === 'call invitation') {
-    onInvite(id)
-  } else if (message === 'accept call' && handshake.onCall) {
-    onAccept()
-  } else if (message === 'decline call') {
-    onDecline()
+function stop () {
+  hangBtn.disabled = true
+  handshake.onCall = false
+  callBtn.disabled = false
+  for (let id in handshake.pcDictionary) {
+    removePeer(id)
   }
-})
+  localVideo.srcObject = null
+  handshake.localStream.getTracks().forEach(track => track.stop())
+  document.querySelector('.videoStreams').style.display = 'none'
+  incomingMsg.style.flex = '10'
+}
+
+function removePeer (id) {
+  let disconnectedPeer = document.getElementById(id)
+  disconnectedPeer.srcObject = null
+  document.querySelector('#remoteFeeds').removeChild(disconnectedPeer)
+  handshake.pcDictionary[id].close()
+  delete handshake.pcDictionary[id]
+  handshake.remoteStream[id].getTracks().forEach(track => track.stop())
+  handshake.peersInCurrRoom.splice(handshake.peersInCurrRoom.indexOf(id), 1)
+}
 
 function onLocalStream (localStream) {
   document.querySelector('.videoStreams').style.display = 'flex'
@@ -295,34 +302,26 @@ function onDecline () {
   alert('Call declined')
 }
 
-function stop () {
-  hangBtn.disabled = true
-  handshake.onCall = false
-  callBtn.disabled = false
-  for (let id in handshake.pcDictionary) {
-    removePeer(id)
+socket.on('message', (message, id) => {
+  if (message === 'got user media' && handshake.onCall) {
+    handshake.onUsrMedia(id, message, onLocalStream, sendMessage, onRemoteStream)
+  } else if (message.type === 'offer' && handshake.peersInCurrRoom.indexOf(id) === -1) {
+    handshake.onOffer(id, message, sendMessage, onRemoteStream)
+  } else if (message.type === 'answer') {
+    handshake.onAnswer(id, message)
+  } else if (message.type === 'candidate') {
+    handshake.onCandidate(id, message)
+  } else if (message === 'bye') {
+    handleRemoteHangup(id)
+  } else if (message === 'call invitation') {
+    onInvite(id)
+  } else if (message === 'accept call' && handshake.onCall) {
+    onAccept()
+  } else if (message === 'decline call') {
+    onDecline()
   }
-  localVideo.srcObject = null
-  handshake.localStream.getTracks().forEach(track => track.stop())
-  document.querySelector('.videoStreams').style.display = 'none'
-  incomingMsg.style.flex = '10'
-}
-
-function removePeer (id) {
-  let disconnectedPeer = document.getElementById(id)
-  disconnectedPeer.srcObject = null
-  document.querySelector('#remoteFeeds').removeChild(disconnectedPeer)
-  handshake.pcDictionary[id].close()
-  delete handshake.pcDictionary[id]
-  handshake.remoteStream[id].getTracks().forEach(track => track.stop())
-  handshake.peersInCurrRoom.splice(handshake.peersInCurrRoom.indexOf(id), 1)
-}
+})
 
 window.onbeforeunload = function () {
   sendMessage('bye')
-}
-
-function sendMsgToRoom () {
-  acceptIncomingMsg(sendData.value, 'fromMe', myName, handshake.currRoom)
-  socket.emit('group chat', sendData.value, grpMembers, handshake.currRoom)
 }
