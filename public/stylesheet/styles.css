@@ -42,10 +42,10 @@ body {
     opacity: 0.8;
 }
 
-.new:hover > div {
+/* .new:hover > div {
     opacity: 0.5;
-}
-.new:hover > div:hover {
+} */
+.new:hover {
     opacity: 1.0;
 }
 
@@ -150,4 +150,15 @@ body {
 
 #msg {
     width: 80.9%;
+}
+
+#logout {
+    color: white;
+    opacity: 0.8;
+    margin: 0px 11px;
+    cursor: pointer;
+}
+
+#logout:hover {
+    opacity: 1.0;
 }

@@ -32,8 +32,15 @@ hangBtn.addEventListener('click', () => {
 })
 
 document.querySelector('#logout').addEventListener('click', () => {
-  socket.emit('disconnect')
+  socket.disconnect()
+  window.location = '/'
 })
+
+socket.on('disconnected', id => {
+  delete allClients[id]
+  listOfClients.removeChild(document.getElementById(id))
+})
+
 document.querySelector('#newRoom').addEventListener('click', createGroup)
 
 document.getElementById('accept').addEventListener('click', () => {
@@ -91,6 +98,7 @@ function updateClientList (clientsList) {
     if (!allClients.hasOwnProperty(client) && client !== myId) {
       let clientDiv = document.createElement('div')
       clientDiv.innerText = clientsList[client].clientName
+      clientDiv.id = client
       clientDiv.addEventListener('click', () => updateCurrOrGroup(client))
       listOfClients.appendChild(clientDiv)
       listOfClients.style.display = 'none'
