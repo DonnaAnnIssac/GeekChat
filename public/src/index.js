@@ -54,6 +54,12 @@ function toggleClientList () {
   listOfClients.style.display = (listOfClients.style.display === 'block') ? 'none' : 'block'
 }
 
+window.addEventListener('click', () => {
+  if (create) {
+    toggleClientList()
+  }
+})
+
 function createGroup () {
   if (!create) {
     create = true
@@ -65,7 +71,9 @@ function createGroup () {
     create = false
     document.querySelector('#newRoom').innerText = 'New Room'
     toggleClientList()
-    createRoom(grpMembers)
+    if (grpMembers.length > 0) {
+      createRoom(grpMembers)
+    }
   }
 }
 
