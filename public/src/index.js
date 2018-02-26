@@ -19,14 +19,13 @@ hangBtn.disabled = true
 
 function sendMsgToRoom () {
   acceptIncomingMsg(sendData.value, 'fromMe', appData.myName, handshake.currRoom)
-  sendData.value = ''
   socket.emit('group chat', sendData.value, grpMembers, handshake.currRoom, appData.myId)
+  sendData.value = ''
 }
 
 sendData.addEventListener('keypress', (e) => {
   if (e.keyCode === 13) {
     sendMsgToRoom()
-    sendData.value = ''
   }
 })
 
@@ -37,9 +36,23 @@ document.querySelector('#logout').addEventListener('click', () => {
   window.location = '/'
 })
 
+function displayNotification(name) {
+  let notification = name + ' left'
+  acceptIncomingMsg(notification, 'general', null, handshake.currRoom)
+}
 socket.on('disconnected', id => {
   let disconnectedNode = document.getElementById(allClients[id])
   listOfClients.removeChild(disconnectedNode)
+  if (document.querySelector('#chatHead').innerText.indexOf(allClients[id]) !== -1) {
+    document.querySelector('#chatHead').innerText = document.querySelector('#chatHead').innerText.replace(allClients[id], '')
+    if (document.querySelector('#chatHead').innerText === '') {
+      while (incomingMsg.firstChild) {
+        incomingMsg.removeChild(incomingMsg.firstChild)
+      }
+    } else {
+      displayNotification(allClients[id])
+    }
+  }
   delete allClients[id]
 })
 
@@ -161,7 +174,7 @@ function acceptIncomingMsg (message, clsName, sender, room) {
   handshake.currRoom = room
   let msg = document.createElement('div')
   msg.innerText = message
-  if (handshake.group && sender !== appData.myName) {
+  if (handshake.group && sender && sender !== appData.myName) {
     let sentBy = document.createElement('div')
     sentBy.innerText = sender
     let grpMsg = document.createElement('div')
