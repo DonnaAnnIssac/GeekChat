@@ -36,7 +36,7 @@ document.querySelector('#logout').addEventListener('click', () => {
   window.location = '/'
 })
 
-function displayNotification(name) {
+function displayNotification (name) {
   let notification = name + ' left'
   acceptIncomingMsg(notification, 'general', null, handshake.currRoom)
 }
@@ -249,11 +249,16 @@ function stop () {
   for (let id in handshake.pcDictionary) {
     removePeer(id)
   }
-  localVideo.srcObject = null
-  handshake.localStream.getTracks().forEach(track => track.stop())
-  handshake.localStream = null
-  document.querySelector('.videoStreams').style.display = 'none'
-  incomingMsg.style.flex = '10'
+  if (localVideo.srcObject) {
+    localVideo.srcObject = null
+    handshake.localStream.getTracks().forEach(track => track.stop())
+    handshake.localStream = null
+    document.querySelector('.videoStreams').style.display = 'none'
+    incomingMsg.style.flex = '10'
+  } else {
+    callBtn.disabled = true
+    sendBtn.disabled = true
+  }
 }
 
 function removePeer (id) {
@@ -293,11 +298,11 @@ function onRemoteStream (remoteStream, id) {
 }
 
 function handleRemoteHangup (id) {
-  if (handshake.peersInCurrRoom.length === 1) {
+  if (handshake.peersInCurrRoom.length > 1) {
+    removePeer(id)
+  } else {
     handshake.group = false
     stop()
-  } else {
-    removePeer(id)
   }
 }
 
