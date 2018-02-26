@@ -152,6 +152,11 @@ body {
     align-self: flex-end
 }
 
+.general {
+   width: max-content;
+   padding: 3px;
+   align-self: center;
+}
 #msg {
     width: 80.9%;
 }
