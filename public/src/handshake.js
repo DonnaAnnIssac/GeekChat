@@ -21,8 +21,8 @@ let handshake = {
     }]
   },
   gotStream: function (stream) {
-    // console.log('Got local stream')
-    // console.log(stream === null)
+    console.log('Got local stream')
+    console.log(stream === null)
     this.localStream = stream
     return this.localStream
   },
@@ -58,7 +58,7 @@ let handshake = {
       //   }
       // }
       peer.onaddstream = event => {
-        // console.log('Got remote stream')
+        console.log('Got remote stream')
         this.handleRemoteStreamAdded(event, id, remStreamHandler)
       }
       peer.addStream(this.localStream)
@@ -73,6 +73,8 @@ let handshake = {
     if (event.candidate) {
       console.log('Candidate')
       console.log(event.candidate)
+      console.log('Recipient')
+      console.log(id)
       this.candidates.push({
         type: 'candidate',
         label: event.candidate.sdpMLineIndex,
@@ -91,8 +93,8 @@ let handshake = {
     this.candidates = []
   },
   handleRemoteStreamAdded: function (event, id, remStreamHandler) {
-    // console.log('ID is ' + id)
-    // console.log(event.stream === null)
+    console.log('ID is ' + id)
+    console.log(event.stream === null)
     this.remoteStream[id] = event.stream
     remStreamHandler(this.remoteStream[id], id)
   },
@@ -100,11 +102,13 @@ let handshake = {
     console.log('Remote stream removed. Event: ', event)
   },
   doCall: function (id, sendMessage) {
+    console.log('Creating offer for ' + id)
     this.pcDictionary[id].createOffer()
     .then((sd) => this.setLocalAndSendMessage(sd, id, sendMessage))
     .catch((e) => this.handleCreateOfferError(e))
   },
   doAnswer: function (id, sendMessage) {
+    console.log('Creating answer for ' + id)
     this.pcDictionary[id].createAnswer()
     .then((sd) => this.setLocalAndSendMessage(sd, id, sendMessage))
     .catch((e) => this.onCreateSessionDescriptionError(e))
@@ -131,16 +135,16 @@ let handshake = {
   },
   onOffer: function (id, message, sendMessage, remStreamHandler) {
     if (!this.isInitiator) {
-      // console.log('Got offer')
+      console.log('Got offer from ' + id)
       this.start(id, message, sendMessage, remStreamHandler)
     }
   },
   onAnswer: function (id, message) {
-    // console.log('Got answer')
+    console.log('Got answer from ' + id)
     this.pcDictionary[id].setRemoteDescription(new RTCSessionDescription(message))
   },
   onCandidate: function (id, message) {
-    console.log('Got candidate')
+    console.log('Got candidate from ' + id)
     console.log(this.pcDictionary[id].iceConnectionState)
     console.log(this.pcDictionary[id].remoteDescription)
     // if (this.pcDictionary[id].remoteDescription &&
@@ -152,7 +156,11 @@ let handshake = {
           sdpMLineIndex: message.label,
           candidate: message.candidate
         })
-        this.pcDictionary[id].addIceCandidate(candidate)
+        this.pcDictionary[id].addIceCandidate(candidate).then( () => {
+          console.log('Added candidate to ice agent')
+        }).catch(e => {
+          console.log('Error: Failure during addIceCandidate(): ' + e)
+        })
     //     this.remoteCandidates = []
     //   })
     // } else {

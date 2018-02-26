@@ -100,6 +100,7 @@ function updateClientList (clientsList) {
       allClients[client] = clientsList[client]
     }
   }
+  console.log(allClients)
 }
 
 socket.on('new peer', clients => {
