@@ -17,12 +17,9 @@ sendBtn.disabled = true
 callBtn.disabled = true
 hangBtn.disabled = true
 
-sendData.addEventListener('click', () => {
-  sendData.value = ''
-})
-
 function sendMsgToRoom () {
   acceptIncomingMsg(sendData.value, 'fromMe', appData.myName, handshake.currRoom)
+  sendData.value = ''
   socket.emit('group chat', sendData.value, grpMembers, handshake.currRoom, appData.myId)
 }
 
@@ -41,8 +38,9 @@ document.querySelector('#logout').addEventListener('click', () => {
 })
 
 socket.on('disconnected', id => {
+  let disconnectedNode = document.getElementById(allClients[id])
+  listOfClients.removeChild(disconnectedNode)
   delete allClients[id]
-  listOfClients.removeChild(document.getElementById(id))
 })
 
 function createRoom (members) {
@@ -53,12 +51,6 @@ function createRoom (members) {
 function toggleClientList () {
   listOfClients.style.display = (listOfClients.style.display === 'block') ? 'none' : 'block'
 }
-
-window.addEventListener('click', () => {
-  if (create) {
-    toggleClientList()
-  }
-})
 
 function createGroup () {
   if (!create) {
@@ -88,7 +80,7 @@ function updateClientList (clientsList) {
     if (!allClients.hasOwnProperty(client) && client !== appData.myId) {
       let clientDiv = document.createElement('div')
       clientDiv.innerText = clientsList[client]
-      clientDiv.id = client
+      clientDiv.id = clientsList[client]
       clientDiv.addEventListener('click', () => updateCurrOrGroup(client))
       listOfClients.appendChild(clientDiv)
       listOfClients.style.display = 'none'
@@ -162,6 +154,9 @@ socket.on('created', (room, members) => {
   callBtn.disabled = false
 })
 
+function updateScroll () {
+  incomingMsg.scrollTop = incomingMsg.scrollHeight
+}
 function acceptIncomingMsg (message, clsName, sender, room) {
   handshake.currRoom = room
   let msg = document.createElement('div')
@@ -180,6 +175,7 @@ function acceptIncomingMsg (message, clsName, sender, room) {
     msg.style.backgroundColor = 'white'
     incomingMsg.appendChild(msg)
   }
+  updateScroll()
 }
 
 function chatTextHandler (from, clients, msg, room) {
@@ -241,6 +237,7 @@ function stop () {
   }
   localVideo.srcObject = null
   handshake.localStream.getTracks().forEach(track => track.stop())
+  handshake.localStream = null
   document.querySelector('.videoStreams').style.display = 'none'
   incomingMsg.style.flex = '10'
 }
@@ -248,10 +245,11 @@ function stop () {
 function removePeer (id) {
   let disconnectedPeer = document.getElementById(id)
   disconnectedPeer.srcObject = null
-  document.querySelector('#remoteFeeds').removeChild(disconnectedPeer)
+  remoteFeeds.removeChild(disconnectedPeer)
   handshake.pcDictionary[id].close()
   delete handshake.pcDictionary[id]
   handshake.remoteStream[id].getTracks().forEach(track => track.stop())
+  delete handshake.remoteStream[id]
   handshake.peersInCurrRoom.splice(handshake.peersInCurrRoom.indexOf(id), 1)
 }
 
@@ -267,7 +265,7 @@ function onRemoteStream (remoteStream, id) {
   remoteVideo.setAttribute('id', id)
   remoteVideo.srcObject = remoteStream
   remoteFeeds.appendChild(remoteVideo)
-  incomingMsg.style.flex = '2'
+  incomingMsg.style.flex = '4'
   if (remoteFeeds.childElementCount === 1) {
     remoteVideo.style.flex = '1'
   } else {
