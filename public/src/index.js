@@ -258,8 +258,10 @@ function stop () {
 
 function removePeer (id) {
   let disconnectedPeer = document.getElementById(id)
-  disconnectedPeer.srcObject = null
-  remoteFeeds.removeChild(disconnectedPeer)
+  if (disconnectedPeer) {
+    disconnectedPeer.srcObject = null
+    remoteFeeds.removeChild(disconnectedPeer)
+  }
   handshake.pcDictionary[id].close()
   delete handshake.pcDictionary[id]
   handshake.remoteStream[id].getTracks().forEach(track => track.stop())
