@@ -10,11 +10,19 @@ let handshake = {
   pcDictionary: {},
   peersInCurrRoom: [],
   candidates: [],
+  remoteCandidates: [],
   constraints: {
     audio: true,
     video: {width: 200, height: 200}
   },
+  configuration: {
+    'iceServers': [{
+      'urls': 'stun:stun.l.google.com:19302'
+    }]
+  },
   gotStream: function (stream) {
+    // console.log('Got local stream')
+    // console.log(stream === null)
     this.localStream = stream
     return this.localStream
   },
@@ -38,11 +46,19 @@ let handshake = {
   },
   createPeerConnection: function (id, sendMessage, remStreamHandler) {
     try {
-      let peer = new RTCPeerConnection(null)
+      let peer = new RTCPeerConnection(this.configuration)
       peer.onicecandidate = event => {
+        console.log('Got ice candidate')
         this.handleIceCandidate(event, id, sendMessage)
       }
+      // peer.oniceconnectionstatechange = event => {
+      //   console.log(this.pcDictionary[id].iceConnectionState)
+      //   if (this.pcDictionary[id] === 'new' || this.pcDictionary[id] === 'completed') {
+      //     this.onCandidate(id)
+      //   }
+      // }
       peer.onaddstream = event => {
+        // console.log('Got remote stream')
         this.handleRemoteStreamAdded(event, id, remStreamHandler)
       }
       peer.addStream(this.localStream)
@@ -55,6 +71,8 @@ let handshake = {
   },
   handleIceCandidate: function (event, id, sendMessage) {
     if (event.candidate) {
+      console.log('Candidate')
+      console.log(event.candidate)
       this.candidates.push({
         type: 'candidate',
         label: event.candidate.sdpMLineIndex,
@@ -73,6 +91,8 @@ let handshake = {
     this.candidates = []
   },
   handleRemoteStreamAdded: function (event, id, remStreamHandler) {
+    // console.log('ID is ' + id)
+    // console.log(event.stream === null)
     this.remoteStream[id] = event.stream
     remStreamHandler(this.remoteStream[id], id)
   },
@@ -111,18 +131,33 @@ let handshake = {
   },
   onOffer: function (id, message, sendMessage, remStreamHandler) {
     if (!this.isInitiator) {
+      // console.log('Got offer')
       this.start(id, message, sendMessage, remStreamHandler)
     }
   },
   onAnswer: function (id, message) {
+    // console.log('Got answer')
     this.pcDictionary[id].setRemoteDescription(new RTCSessionDescription(message))
   },
   onCandidate: function (id, message) {
-    let candidate = new RTCIceCandidate({
-      sdpMLineIndex: message.label,
-      candidate: message.candidate
-    })
-    this.pcDictionary[id].addIceCandidate(candidate)
+    console.log('Got candidate')
+    console.log(this.pcDictionary[id].iceConnectionState)
+    console.log(this.pcDictionary[id].remoteDescription)
+    // if (this.pcDictionary[id].remoteDescription &&
+    //     (this.pcDictionary[id].iceConnectionState === 'completed' ||
+    //     this.pcDictionary[id].iceConnectionState === 'new')) {
+    //   console.log('Adding ice candidate')
+    //   this.remoteCandidates.forEach(message => {
+        let candidate = new RTCIceCandidate({
+          sdpMLineIndex: message.label,
+          candidate: message.candidate
+        })
+        this.pcDictionary[id].addIceCandidate(candidate)
+    //     this.remoteCandidates = []
+    //   })
+    // } else {
+    //   this.remoteCandidates.push(message)
+    // }
   }
 }
 
