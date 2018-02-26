@@ -42,9 +42,6 @@ body {
     opacity: 0.8;
 }
 
-/* .new:hover > div {
-    opacity: 0.5;
-} */
 .new:hover {
     opacity: 1.0;
 }
@@ -60,6 +57,12 @@ body {
 #clientsList {
     background-color: #ffffff;
     color: #464749;
+    cursor: pointer;
+}
+
+#clientsList:hover > div:hover {
+    background-color: #464749;
+    color: #ffffff;
 }
 
 #chatHead {
@@ -92,6 +95,7 @@ body {
     flex: 10;
     display: flex;
     flex-direction: column;
+    overflow-y: auto;
 }
 
 .popUp {
