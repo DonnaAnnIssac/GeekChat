@@ -18,9 +18,11 @@ callBtn.disabled = true
 hangBtn.disabled = true
 
 function sendMsgToRoom () {
-  acceptIncomingMsg(sendData.value, 'fromMe', appData.myName, handshake.currRoom)
-  socket.emit('group chat', sendData.value, grpMembers, handshake.currRoom, appData.myId)
-  sendData.value = ''
+  if (sendData.value !== '') {
+    acceptIncomingMsg(sendData.value, 'fromMe', appData.myName, handshake.currRoom)
+    socket.emit('group chat', sendData.value, grpMembers, handshake.currRoom, appData.myId)
+    sendData.value = ''
+  }
 }
 
 sendData.addEventListener('keypress', (e) => {
@@ -36,8 +38,7 @@ document.querySelector('#logout').addEventListener('click', () => {
   window.location = '/'
 })
 
-function displayNotification (name) {
-  let notification = name + ' left'
+function displayNotification (notification) {
   acceptIncomingMsg(notification, 'general', null, handshake.currRoom)
 }
 socket.on('disconnected', id => {
@@ -48,9 +49,11 @@ socket.on('disconnected', id => {
     if (document.querySelector('#chatHead').innerText === '') {
       while (incomingMsg.firstChild) {
         incomingMsg.removeChild(incomingMsg.firstChild)
+        sendBtn.disabled = true
+        callBtn.disabled = true
       }
     } else {
-      displayNotification(allClients[id])
+      displayNotification(allClients[id] + ' left')
     }
   }
   delete allClients[id]
@@ -214,12 +217,20 @@ document.getElementById('accept').addEventListener('click', () => {
   hangBtn.disabled = false
   document.getElementById('callInvite').style.display = 'none'
   handshake.onCall = true
-  socket.emit('call', handshake.currRoom)
+  if (grpMembers.map(m => {
+    if (m !== appData.myId) return allClients[m]
+  }).join(' ').trim() !== document.querySelector('#chatHead').innerText.trim()) {
+    updateChatHead(grpMembers)
+    clearChatWindow()
+  }
   sendMessage('accept call', handshake.currClient)
 })
 
 document.getElementById('decline').addEventListener('click', () => {
   document.getElementById('callInvite').style.display = 'none'
+  callBtn.disabled = false
+  sendBtn.disabled = false
+  updateChatHead(grpMembers)
   sendMessage('decline call', handshake.currClient)
 })
 
@@ -303,11 +314,6 @@ function handleRemoteHangup (id) {
   }
 }
 
-socket.on('members', (members) => {
-  updateChatHead(members)
-  clearChatWindow()
-})
-
 function onInvite (id) {
   handshake.isInitiator = false
   callBtn.disabled = true
@@ -325,10 +331,10 @@ function onAccept () {
   }
 }
 
-function onDecline () {
+function onDecline (id) {
   hangBtn.disabled = true
   callBtn.disabled = false
-  alert('Call declined')
+  displayNotification('Call declined by ' + allClients[id])
 }
 
 socket.on('message', (message, id) => {
@@ -347,7 +353,7 @@ socket.on('message', (message, id) => {
   } else if (message === 'accept call' && handshake.onCall) {
     onAccept()
   } else if (message === 'decline call') {
-    onDecline()
+    onDecline(id)
   }
 })
 
