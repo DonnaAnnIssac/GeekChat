@@ -303,6 +303,7 @@ function handleRemoteHangup (id) {
 
 socket.on('members', (members) => {
   updateChatHead(members)
+  clearChatWindow()
 })
 
 function onInvite (id) {
