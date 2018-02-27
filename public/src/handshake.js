@@ -1,7 +1,6 @@
 let handshake = {
   currRoom: null,
   currClient: null,
-  myId: null,
   onCall: false,
   group: false,
   localStream: null,
