@@ -132,8 +132,9 @@ window.onload = () => {
   xhr.send()
 }
 
-socket.on('init', room => {
+socket.on('init', (room, members) => {
   handshake.currRoom = room
+  grpMembers = members
   socket.emit('join', room)
 })
 
@@ -213,6 +214,7 @@ document.getElementById('accept').addEventListener('click', () => {
   hangBtn.disabled = false
   document.getElementById('callInvite').style.display = 'none'
   handshake.onCall = true
+  socket.emit('call', handshake.currRoom)
   sendMessage('accept call', handshake.currClient)
 })
 
@@ -309,10 +311,9 @@ socket.on('members', (members) => {
 function onInvite (id) {
   handshake.isInitiator = false
   callBtn.disabled = true
+  handshake.currClient = id
   document.getElementById('callInvite').style.display = 'block'
   document.getElementById('caller').innerText = allClients[id] + ' is calling'
-  handshake.currClient = id
-  socket.emit('call')
 }
 
 function onAccept () {
