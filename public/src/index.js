@@ -133,7 +133,6 @@ window.onload = () => {
 }
 
 socket.on('init', room => {
-  handshake.isInitiator = false
   handshake.currRoom = room
   socket.emit('join', room)
 })
@@ -152,10 +151,6 @@ function clearChatWindow (room) {
     }
   }
 }
-
-socket.on('accepted', clients => {
-  handshake.isInitiator = true
-})
 
 socket.on('created', (room, members) => {
   updateChatHead(members)
@@ -306,12 +301,17 @@ function handleRemoteHangup (id) {
   }
 }
 
+socket.on('members', (members) => {
+  updateChatHead(members)
+})
+
 function onInvite (id) {
   handshake.isInitiator = false
   callBtn.disabled = true
   document.getElementById('callInvite').style.display = 'block'
   document.getElementById('caller').innerText = allClients[id] + ' is calling'
   handshake.currClient = id
+  socket.emit('call')
 }
 
 function onAccept () {
