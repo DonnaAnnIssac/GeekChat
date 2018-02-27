@@ -114,7 +114,7 @@ let handshake = {
     .catch((e) => this.onCreateSessionDescriptionError(e))
   },
   setLocalAndSendMessage: function (sessionDescription, id, sendMessage) {
-    if (this.pcDictionary[id].localDescription === null) {
+    if (this.pcDictionary[id].localDescription.type === '') {
       this.pcDictionary[id].setLocalDescription(sessionDescription)
       this.peersInCurrRoom.push(id)
     }
@@ -133,7 +133,7 @@ let handshake = {
       this.doCall(id, sendMessage)
     } else {
       console.log(message)
-      if (this.pcDictionary[id].remoteDescription === null) {
+      if (this.pcDictionary[id].remoteDescription.type === '') {
         this.pcDictionary[id].setRemoteDescription(new RTCSessionDescription(message))
       }
       this.doAnswer(id, sendMessage)
