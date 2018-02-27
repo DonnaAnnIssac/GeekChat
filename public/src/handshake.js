@@ -114,8 +114,11 @@ let handshake = {
     .catch((e) => this.onCreateSessionDescriptionError(e))
   },
   setLocalAndSendMessage: function (sessionDescription, id, sendMessage) {
-    this.pcDictionary[id].setLocalDescription(sessionDescription)
-    this.peersInCurrRoom.push(id)
+    if (!this.pcDictionary[id].localDescription) {
+      this.pcDictionary[id].setLocalDescription(sessionDescription)
+      this.peersInCurrRoom.push(id)
+    }
+    console.log(this.pcDictionary[id].localDescription)
     sendMessage(sessionDescription, id)
   },
   handleCreateOfferError: function (event) {
@@ -129,7 +132,10 @@ let handshake = {
     if (this.isInitiator) {
       this.doCall(id, sendMessage)
     } else {
-      this.pcDictionary[id].setRemoteDescription(new RTCSessionDescription(message))
+      console.log(message)
+      if (!this.pcDictionary[id].remoteDescription) {
+        this.pcDictionary[id].setRemoteDescription(new RTCSessionDescription(message))
+      }
       this.doAnswer(id, sendMessage)
     }
   },
@@ -141,6 +147,7 @@ let handshake = {
   },
   onAnswer: function (id, message) {
     console.log('Got answer from ' + id)
+    console.log(message)
     this.pcDictionary[id].setRemoteDescription(new RTCSessionDescription(message))
   },
   onCandidate: function (id, message) {
@@ -156,7 +163,7 @@ let handshake = {
           sdpMLineIndex: message.label,
           candidate: message.candidate
         })
-        this.pcDictionary[id].addIceCandidate(candidate).then( () => {
+        this.pcDictionary[id].addIceCandidate(candidate).then(() => {
           console.log('Added candidate to ice agent')
         }).catch(e => {
           console.log('Error: Failure during addIceCandidate(): ' + e)
