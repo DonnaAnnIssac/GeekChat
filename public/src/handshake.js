@@ -83,8 +83,7 @@ let handshake = {
     this.candidates = []
   },
   handleRemoteStreamAdded: function (event, id, remStreamHandler) {
-    console.log('ID is ' + id)
-    console.log(event.stream === null)
+    console.log('Got remote stream from ' + id)
     this.remoteStream[id] = event.stream
     remStreamHandler(this.remoteStream[id], id)
   },
@@ -108,6 +107,7 @@ let handshake = {
       this.pcDictionary[id].setLocalDescription(sessionDescription)
       this.peersInCurrRoom.push(id)
     }
+    console.log('Offer/Answer')
     console.log(this.pcDictionary[id].localDescription)
     sendMessage(sessionDescription, id)
   },
@@ -120,21 +120,23 @@ let handshake = {
   start: function (id, message, sendMessage, remStreamHandler) {
     this.createPeerConnection(id, sendMessage, remStreamHandler)
     if (this.status === 'master') {
+      console.log('Starting with ' + id)
       this.doCall(id, sendMessage)
     } else {
-      console.log(message)
+      console.log('After getting an offer from ' + id)
       if (this.pcDictionary[id].remoteDescription.type === '') {
+        console.log('Setting remote sdp')
         this.pcDictionary[id].setRemoteDescription(new RTCSessionDescription(message))
       }
       this.doAnswer(id, sendMessage)
     }
   },
   onOffer: function (id, message, sendMessage, remStreamHandler) {
-    // if (!this.isInitiator) {
-    console.log('Got offer from ' + id)
-    this.status = 'slave'
-    this.start(id, message, sendMessage, remStreamHandler)
-    // }
+    if (this.status !== 'master') {
+      console.log('Got offer from ' + id)
+      this.status = 'slave'
+      this.start(id, message, sendMessage, remStreamHandler)
+    }
   },
   onAnswer: function (id, message, callback) {
     console.log('Got answer from ' + id)

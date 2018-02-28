@@ -321,6 +321,7 @@ function onInvite (id) {
 
 socket.on('current network', (currMembers, id) => {
   console.log('Received network members')
+  console.log(currMembers)
   if (handshake.isInitiator || currMembers.indexOf(appData.myId) !== -1) {
     console.log('Already part of network')
     handshake.status = 'slave'
@@ -355,6 +356,9 @@ function onDecline (id) {
 }
 
 function updateNetwork (id) {
+  console.log('Notifying about network')
+  if (id) console.log('to ' + allClients[id])
+  else console.log('to everybody')
   handshake.currMembers.push(appData.myId)
   handshake.status = 'slave'
   socket.emit('current network', id, handshake.currMembers, handshake.currRoom)
@@ -365,7 +369,6 @@ socket.on('message', (message, id) => {
     if (handshake.localStream === null) {
       handshake.onUsrMedia(onLocalStream)
     } else {
-      console.log('Both peers have local streams')
       updateNetwork(id)
     }
   } else if (message.type === 'offer' && handshake.peersInCurrRoom.indexOf(id) === -1) {
