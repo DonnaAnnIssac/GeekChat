@@ -91,6 +91,21 @@ function updateCurrOrGroup (id) {
   grpMembers.push(id)
 }
 
+function createGroup () {
+  if (!create) {
+    create = true
+    handshake.group = true
+    grpMembers = []
+    document.querySelector('#newRoom').innerText = 'Create'
+    toggleClientList()
+  } else {
+    create = false
+    document.querySelector('#newRoom').innerText = 'New Room'
+    toggleClientList()
+    createRoom(grpMembers)
+  }
+}
+
 function updateClientList (clientsList) {
   for (let client in clientsList) {
     if (!allClients.hasOwnProperty(client) && client !== appData.myId) {
