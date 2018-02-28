@@ -71,7 +71,6 @@ function toggleClientList () {
 function createGroup () {
   if (!create) {
     create = true
-    handshake.group = true
     grpMembers = []
     document.querySelector('#newRoom').innerText = 'Create'
     toggleClientList()
@@ -174,7 +173,7 @@ function acceptIncomingMsg (message, clsName, sender, room) {
   handshake.currRoom = room
   let msg = document.createElement('div')
   msg.innerText = message
-  if (handshake.group && sender && sender !== appData.myName) {
+  if (sender && sender !== appData.myName) {
     let sentBy = document.createElement('div')
     sentBy.innerText = sender
     let grpMsg = document.createElement('div')
@@ -204,7 +203,6 @@ function chatTextHandler (from, clients, msg, room) {
 }
 
 socket.on('group chat text', (clients, msg, from, room) => {
-  handshake.group = true
   grpMembers = clients
   if (from !== appData.myId) {
     chatTextHandler(from, clients, msg, room)
@@ -309,7 +307,6 @@ function handleRemoteHangup (id) {
   if (handshake.peersInCurrRoom.length > 1) {
     removePeer(id)
   } else {
-    handshake.group = false
     stop()
   }
 }
@@ -322,9 +319,29 @@ function onInvite (id) {
   document.getElementById('caller').innerText = allClients[id] + ' is calling'
 }
 
-function onAccept () {
+socket.on('current network', (currMembers, id) => {
+  console.log('Received network members')
+  if (handshake.isInitiator || currMembers.indexOf(appData.myId) !== -1) {
+    console.log('Already part of network')
+    handshake.status = 'slave'
+    handshake.currMembers = currMembers
+  } else {
+    console.log('Preparing queue')
+    handshake.status = 'master'
+    handshake.queue = currMembers.filter(member => handshake.currMembers.indexOf(member) === -1)
+    console.log(handshake.queue)
+  }
+  while (handshake.queue.length > 0) {
+    console.log('Starting handshake with ' + handshake.queue[0])
+    handshake.start(handshake.queue[0], null, sendMessage, onRemoteStream)
+    handshake.queue.shift()
+  }
+})
+
+function onAccept (id) {
   hangBtn.disabled = false
   if (handshake.localStream === null) {
+    console.log('Initiator getting local stream')
     handshake.getLocalStream(onLocalStream)
   } else {
     sendMessage('got user media')
@@ -337,13 +354,26 @@ function onDecline (id) {
   displayNotification('Call declined by ' + allClients[id])
 }
 
+function updateNetwork (id) {
+  handshake.currMembers.push(appData.myId)
+  handshake.status = 'slave'
+  socket.emit('current network', id, handshake.currMembers, handshake.currRoom)
+}
+
 socket.on('message', (message, id) => {
   if (message === 'got user media' && handshake.onCall) {
-    handshake.onUsrMedia(id, message, onLocalStream, sendMessage, onRemoteStream)
+    if (handshake.localStream === null) {
+      handshake.onUsrMedia(onLocalStream)
+    } else {
+      console.log('Both peers have local streams')
+      updateNetwork(id)
+    }
   } else if (message.type === 'offer' && handshake.peersInCurrRoom.indexOf(id) === -1) {
+    console.log('Getting offer')
+    console.log(message)
     handshake.onOffer(id, message, sendMessage, onRemoteStream)
   } else if (message.type === 'answer') {
-    handshake.onAnswer(id, message)
+    handshake.onAnswer(id, message, updateNetwork)
   } else if (message.type === 'candidate') {
     handshake.onCandidate(id, message)
   } else if (message === 'bye') {
@@ -351,7 +381,7 @@ socket.on('message', (message, id) => {
   } else if (message === 'call invitation') {
     onInvite(id)
   } else if (message === 'accept call' && handshake.onCall) {
-    onAccept()
+    onAccept(id)
   } else if (message === 'decline call') {
     onDecline(id)
   }

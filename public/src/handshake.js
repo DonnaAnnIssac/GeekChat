@@ -2,14 +2,15 @@ let handshake = {
   currRoom: null,
   currClient: null,
   onCall: false,
-  group: false,
   localStream: null,
   remoteStream: {},
   isInitiator: false,
   pcDictionary: {},
   peersInCurrRoom: [],
   candidates: [],
-  remoteCandidates: [],
+  status: null,
+  currMembers: [],
+  queue: [],
   constraints: {
     audio: true,
     video: {width: 200, height: 200}
@@ -21,7 +22,6 @@ let handshake = {
   },
   gotStream: function (stream) {
     console.log('Got local stream')
-    console.log(stream === null)
     this.localStream = stream
     return this.localStream
   },
@@ -34,13 +34,10 @@ let handshake = {
       alert('getUserMedia() error: ' + e.name + e.message)
     })
   },
-  onUsrMedia: function (id, message, callback, sendMessage, remStreamHandler) {
+  onUsrMedia: function (callback) {
     if (this.localStream === null) { // receiver
       this.isInitiator = false
       this.getLocalStream(callback)
-    } else if (this.peersInCurrRoom.indexOf(id) === -1) { // sender
-      this.isInitiator = true
-      this.start(id, message, sendMessage, remStreamHandler)
     }
   },
   createPeerConnection: function (id, sendMessage, remStreamHandler) {
@@ -50,12 +47,6 @@ let handshake = {
         console.log('Got ice candidate')
         this.handleIceCandidate(event, id, sendMessage)
       }
-      // peer.oniceconnectionstatechange = event => {
-      //   console.log(this.pcDictionary[id].iceConnectionState)
-      //   if (this.pcDictionary[id] === 'new' || this.pcDictionary[id] === 'completed') {
-      //     this.onCandidate(id)
-      //   }
-      // }
       peer.onaddstream = event => {
         console.log('Got remote stream')
         this.handleRemoteStreamAdded(event, id, remStreamHandler)
@@ -128,7 +119,7 @@ let handshake = {
   },
   start: function (id, message, sendMessage, remStreamHandler) {
     this.createPeerConnection(id, sendMessage, remStreamHandler)
-    if (this.isInitiator) {
+    if (this.status === 'master') {
       this.doCall(id, sendMessage)
     } else {
       console.log(message)
@@ -139,39 +130,31 @@ let handshake = {
     }
   },
   onOffer: function (id, message, sendMessage, remStreamHandler) {
-    if (!this.isInitiator) {
-      console.log('Got offer from ' + id)
-      this.start(id, message, sendMessage, remStreamHandler)
-    }
+    // if (!this.isInitiator) {
+    console.log('Got offer from ' + id)
+    this.status = 'slave'
+    this.start(id, message, sendMessage, remStreamHandler)
+    // }
   },
-  onAnswer: function (id, message) {
+  onAnswer: function (id, message, callback) {
     console.log('Got answer from ' + id)
     console.log(message)
     this.pcDictionary[id].setRemoteDescription(new RTCSessionDescription(message))
+    callback()
   },
   onCandidate: function (id, message) {
     console.log('Got candidate from ' + id)
     console.log(this.pcDictionary[id].iceConnectionState)
     console.log(this.pcDictionary[id].remoteDescription)
-    // if (this.pcDictionary[id].remoteDescription &&
-    //     (this.pcDictionary[id].iceConnectionState === 'completed' ||
-    //     this.pcDictionary[id].iceConnectionState === 'new')) {
-    //   console.log('Adding ice candidate')
-    //   this.remoteCandidates.forEach(message => {
-        let candidate = new RTCIceCandidate({
-          sdpMLineIndex: message.label,
-          candidate: message.candidate
-        })
-        this.pcDictionary[id].addIceCandidate(candidate).then(() => {
-          console.log('Added candidate to ice agent')
-        }).catch(e => {
-          console.log('Error: Failure during addIceCandidate(): ' + e)
-        })
-    //     this.remoteCandidates = []
-    //   })
-    // } else {
-    //   this.remoteCandidates.push(message)
-    // }
+    let candidate = new RTCIceCandidate({
+      sdpMLineIndex: message.label,
+      candidate: message.candidate
+    })
+    this.pcDictionary[id].addIceCandidate(candidate).then(() => {
+      console.log('Added candidate to ice agent')
+    }).catch(e => {
+      console.log('Error: Failure during addIceCandidate(): ' + e)
+    })
   }
 }
 
