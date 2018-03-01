@@ -241,6 +241,7 @@ callBtn.addEventListener('click', () => {
 })
 
 hangBtn.addEventListener('click', () => {
+  handshake.currMembers = []
   stop()
   sendMessage('bye')
 })
@@ -274,10 +275,10 @@ function removePeer (id) {
     disconnectedPeer.srcObject = null
     remoteFeeds.removeChild(disconnectedPeer)
   }
-  handshake.pcDictionary[id].close()
-  delete handshake.pcDictionary[id]
   handshake.remoteStream[id].getTracks().forEach(track => track.stop())
   delete handshake.remoteStream[id]
+  handshake.pcDictionary[id].close()
+  delete handshake.pcDictionary[id]
   handshake.peersInCurrRoom.splice(handshake.peersInCurrRoom.indexOf(id), 1)
 }
 
@@ -305,6 +306,8 @@ function onRemoteStream (remoteStream, id) {
 }
 
 function handleRemoteHangup (id) {
+  let index = handshake.currMembers.indexOf(id)
+  handshake.currMembers.splice(index, 1)
   if (handshake.peersInCurrRoom.length > 1) {
     removePeer(id)
   } else {
@@ -346,6 +349,7 @@ function processQueue(id) {
     handshake.currMembers.push(handshake.queue[0])
     handshake.start(handshake.queue.shift(), null, sendMessage, onRemoteStream)
   } else {
+    console.log('Connected to all peers. Part of network now.')
     handshake.currMembers.push(appData.myId)
     handshake.status = 'slave'
     socket.emit('done', id)
@@ -390,7 +394,7 @@ socket.on('message', (message, id) => {
   } else if (message.type === 'offer' && handshake.peersInCurrRoom.indexOf(id) === -1) {
     console.log('Getting offer')
     console.log(message)
-    handshake.currMembers.push(id)
+    handshake.currMembers.pu1sh(id)
     handshake.onOffer(id, message, sendMessage, onRemoteStream)
   } else if (message.type === 'answer') {
     console.log('Getting answer')
