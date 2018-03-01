@@ -236,6 +236,7 @@ callBtn.addEventListener('click', () => {
   callBtn.disabled = true
   handshake.isInitiator = true
   handshake.onCall = true
+  handshake.currMembers.push(appData.myId)
   sendMessage('call invitation')
 })
 
@@ -280,10 +281,10 @@ function removePeer (id) {
   handshake.peersInCurrRoom.splice(handshake.peersInCurrRoom.indexOf(id), 1)
 }
 
-function onLocalStream (localStream) {
+function onLocalStream (localStream, id) {
   document.querySelector('.videoStreams').style.display = 'flex'
   localVideo.srcObject = localStream
-  sendMessage('got user media')
+  sendMessage('got user media', id)
 }
 
 function onRemoteStream (remoteStream, id) {
@@ -322,30 +323,45 @@ function onInvite (id) {
 socket.on('current network', (currMembers, id) => {
   console.log('Received network members')
   console.log(currMembers)
-  if (handshake.isInitiator || currMembers.indexOf(appData.myId) !== -1) {
-    console.log('Already part of network')
-    handshake.status = 'slave'
-    handshake.currMembers = currMembers
-  } else {
-    console.log('Preparing queue')
-    handshake.status = 'master'
-    handshake.queue = currMembers.filter(member => handshake.currMembers.indexOf(member) === -1)
-    console.log(handshake.queue)
-  }
-  while (handshake.queue.length > 0) {
-    console.log('Starting handshake with ' + handshake.queue[0])
-    handshake.start(handshake.queue[0], null, sendMessage, onRemoteStream)
-    handshake.queue.shift()
+  handshake.status = 'master'
+  handshake.queue = currMembers
+  processQueue(id)
+})
+
+socket.on('done', () => {
+  if (handshake.isInitiator) {
+    if (handshake.queue.length === 0) {
+      handshake.isProcessing = false
+    } else {
+      sendMessage('got user media', handshake.queue.shift())
+    }
   }
 })
 
+function processQueue(id) {
+  if (handshake.queue.length > 0) {
+    console.log('Starting handshake with ' + handshake.queue[0])
+    handshake.currMembers.push(handshake.queue[0])
+    handshake.start(handshake.queue.shift(), null, sendMessage, onRemoteStream)
+  } else {
+    handshake.currMembers.push(appData.myId)
+    handshake.status = 'slave'
+    socket.emit('done', id)
+  }
+}
+
 function onAccept (id) {
   hangBtn.disabled = false
-  if (handshake.localStream === null) {
-    console.log('Initiator getting local stream')
-    handshake.getLocalStream(onLocalStream)
+  if (handshake.isProcessing) {
+    handshake.queue.push(id)
   } else {
-    sendMessage('got user media')
+    handshake.isProcessing = true
+    if (handshake.localStream === null) {
+      console.log('Initiator getting local stream')
+      handshake.getLocalStream(onLocalStream, id)
+    } else {
+      sendMessage('got user media', id)
+    }
   }
 }
 
@@ -355,28 +371,28 @@ function onDecline (id) {
   displayNotification('Call declined by ' + allClients[id])
 }
 
-function updateNetwork (id) {
+function sendCurrPeers (id) {
   console.log('Notifying about network')
-  if (id) console.log('to ' + allClients[id])
-  else console.log('to everybody')
-  handshake.currMembers.push(appData.myId)
+  console.log('to ' + allClients[id])
   handshake.status = 'slave'
-  socket.emit('current network', id, handshake.currMembers, handshake.currRoom)
+  socket.emit('current network', id, handshake.currMembers)
 }
 
 socket.on('message', (message, id) => {
   if (message === 'got user media' && handshake.onCall) {
     if (handshake.localStream === null) {
-      handshake.onUsrMedia(onLocalStream)
+      handshake.getLocalStream(onLocalStream, id)
     } else {
-      updateNetwork(id)
+      sendCurrPeers(id)
     }
   } else if (message.type === 'offer' && handshake.peersInCurrRoom.indexOf(id) === -1) {
     console.log('Getting offer')
     console.log(message)
+    handshake.currMembers.push(id)
     handshake.onOffer(id, message, sendMessage, onRemoteStream)
   } else if (message.type === 'answer') {
-    handshake.onAnswer(id, message, updateNetwork)
+    handshake.onAnswer(id, message)
+    processQueue(id)
   } else if (message.type === 'candidate') {
     handshake.onCandidate(id, message)
   } else if (message === 'bye') {
