@@ -394,7 +394,7 @@ socket.on('message', (message, id) => {
   } else if (message.type === 'offer' && handshake.peersInCurrRoom.indexOf(id) === -1) {
     console.log('Getting offer')
     console.log(message)
-    handshake.currMembers.pu1sh(id)
+    handshake.currMembers.push(id)
     handshake.onOffer(id, message, sendMessage, onRemoteStream)
   } else if (message.type === 'answer') {
     console.log('Getting answer')

@@ -128,11 +128,9 @@ let handshake = {
     }
   },
   onOffer: function (id, message, sendMessage, remStreamHandler) {
-    if (this.status !== 'master') {
-      console.log('Got offer from ' + id)
-      this.status = 'slave'
-      this.start(id, message, sendMessage, remStreamHandler)
-    }
+    console.log('Got offer from ' + id)
+    this.status = 'slave'
+    this.start(id, message, sendMessage, remStreamHandler)
   },
   onAnswer: function (id, message, startNext) {
     console.log('Got answer from ' + id)
