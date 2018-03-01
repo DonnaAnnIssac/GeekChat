@@ -11,6 +11,7 @@ let handshake = {
   status: null,
   currMembers: [],
   queue: [],
+  isProcessing: false,
   constraints: {
     audio: true,
     video: {width: 200, height: 200}
@@ -25,20 +26,14 @@ let handshake = {
     this.localStream = stream
     return this.localStream
   },
-  getLocalStream: function (callback) {
+  getLocalStream: function (callback, id) {
     let mediaConstraints = this.constraints
     navigator.mediaDevices.getUserMedia(mediaConstraints)
-    .then((stream) => this.gotStream(stream))
-    .then(callback)
+    .then(stream => this.gotStream(stream))
+    .then(stream => callback(stream, id))
     .catch((e) => {
       alert('getUserMedia() error: ' + e.name + e.message)
     })
-  },
-  onUsrMedia: function (callback) {
-    if (this.localStream === null) { // receiver
-      this.isInitiator = false
-      this.getLocalStream(callback)
-    }
   },
   createPeerConnection: function (id, sendMessage, remStreamHandler) {
     try {
@@ -103,10 +98,10 @@ let handshake = {
     .catch((e) => this.onCreateSessionDescriptionError(e))
   },
   setLocalAndSendMessage: function (sessionDescription, id, sendMessage) {
-    if (this.pcDictionary[id].localDescription.type === '') {
+    // if (this.pcDictionary[id].localDescription.type === '') {
       this.pcDictionary[id].setLocalDescription(sessionDescription)
       this.peersInCurrRoom.push(id)
-    }
+    // }
     console.log('Offer/Answer')
     console.log(this.pcDictionary[id].localDescription)
     sendMessage(sessionDescription, id)
@@ -138,11 +133,10 @@ let handshake = {
       this.start(id, message, sendMessage, remStreamHandler)
     }
   },
-  onAnswer: function (id, message, callback) {
+  onAnswer: function (id, message) {
     console.log('Got answer from ' + id)
     console.log(message)
     this.pcDictionary[id].setRemoteDescription(new RTCSessionDescription(message))
-    callback()
   },
   onCandidate: function (id, message) {
     console.log('Got candidate from ' + id)
