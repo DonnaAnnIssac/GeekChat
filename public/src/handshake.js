@@ -46,7 +46,8 @@ let handshake = {
         console.log('Got remote stream')
         this.handleRemoteStreamAdded(event, id, remStreamHandler)
       }
-      peer.addStream(this.localStream)
+      this.localStream.getTracks().forEach(track => peer.addTrack(track, this.localStream))
+      // peer.addStream(this.localStream)
       peer.onremovestream = this.handleRemoteStreamRemoved
       this.pcDictionary[id] = peer
     } catch (e) {
