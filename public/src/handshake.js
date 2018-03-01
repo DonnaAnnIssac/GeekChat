@@ -133,10 +133,11 @@ let handshake = {
       this.start(id, message, sendMessage, remStreamHandler)
     }
   },
-  onAnswer: function (id, message) {
+  onAnswer: function (id, message, startNext) {
     console.log('Got answer from ' + id)
     console.log(message)
     this.pcDictionary[id].setRemoteDescription(new RTCSessionDescription(message))
+    startNext(id)
   },
   onCandidate: function (id, message) {
     console.log('Got candidate from ' + id)

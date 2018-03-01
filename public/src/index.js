@@ -339,6 +339,8 @@ socket.on('done', () => {
 })
 
 function processQueue(id) {
+  console.log('Queue length: ')
+  console.log(handshake.queue.length)
   if (handshake.queue.length > 0) {
     console.log('Starting handshake with ' + handshake.queue[0])
     handshake.currMembers.push(handshake.queue[0])
@@ -391,8 +393,8 @@ socket.on('message', (message, id) => {
     handshake.currMembers.push(id)
     handshake.onOffer(id, message, sendMessage, onRemoteStream)
   } else if (message.type === 'answer') {
-    handshake.onAnswer(id, message)
-    processQueue(id)
+    console.log('Getting answer')
+    handshake.onAnswer(id, message, processQueue)
   } else if (message.type === 'candidate') {
     handshake.onCandidate(id, message)
   } else if (message === 'bye') {
