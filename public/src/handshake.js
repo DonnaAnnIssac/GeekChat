@@ -80,6 +80,7 @@ let handshake = {
   },
   handleRemoteStreamAdded: function (event, id, remStreamHandler) {
     console.log('Got remote stream from ' + id)
+    console.log(event.stream.active)
     this.remoteStream[id] = event.stream
     remStreamHandler(this.remoteStream[id], id)
   },
@@ -100,8 +101,8 @@ let handshake = {
   },
   setLocalAndSendMessage: function (sessionDescription, id, sendMessage) {
     // if (this.pcDictionary[id].localDescription.type === '') {
-      this.pcDictionary[id].setLocalDescription(sessionDescription)
-      this.peersInCurrRoom.push(id)
+    this.pcDictionary[id].setLocalDescription(sessionDescription)
+    this.peersInCurrRoom.push(id)
     // }
     console.log('Offer/Answer')
     console.log(this.pcDictionary[id].localDescription)
