@@ -331,7 +331,7 @@ socket.on('current network', (currMembers, id) => {
   processQueue(id)
 })
 
-socket.on('done', () => {
+function onDone () {
   if (handshake.isInitiator) {
     if (handshake.queue.length === 0) {
       handshake.isProcessing = false
@@ -339,9 +339,9 @@ socket.on('done', () => {
       sendMessage('got user media', handshake.queue.shift())
     }
   }
-})
+}
 
-function processQueue(id) {
+function processQueue (id) {
   console.log('Queue length: ')
   console.log(handshake.queue.length)
   if (handshake.queue.length > 0) {
@@ -352,7 +352,7 @@ function processQueue(id) {
     console.log('Connected to all peers. Part of network now.')
     handshake.currMembers.push(appData.myId)
     handshake.status = 'slave'
-    socket.emit('done', id)
+    sendMessage('done')
   }
 }
 
@@ -409,6 +409,8 @@ socket.on('message', (message, id) => {
     onAccept(id)
   } else if (message === 'decline call') {
     onDecline(id)
+  } else if (message === 'done') {
+    onDone()
   }
 })
 
