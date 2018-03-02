@@ -17,48 +17,6 @@ sendBtn.disabled = true
 callBtn.disabled = true
 hangBtn.disabled = true
 
-function sendMsgToRoom () {
-  if (sendData.value !== '') {
-    acceptIncomingMsg(sendData.value, 'fromMe', appData.myName, handshake.currRoom)
-    socket.emit('group chat', sendData.value, grpMembers, handshake.currRoom, appData.myId)
-    sendData.value = ''
-  }
-}
-
-sendData.addEventListener('keypress', (e) => {
-  if (e.keyCode === 13) {
-    sendMsgToRoom()
-  }
-})
-
-sendBtn.addEventListener('click', sendMsgToRoom)
-
-document.querySelector('#logout').addEventListener('click', () => {
-  socket.disconnect()
-  window.location = '/'
-})
-
-function displayNotification (notification) {
-  acceptIncomingMsg(notification, 'general', null, handshake.currRoom)
-}
-socket.on('disconnected', id => {
-  let disconnectedNode = document.getElementById(allClients[id])
-  listOfClients.removeChild(disconnectedNode)
-  if (document.querySelector('#chatHead').innerText.indexOf(allClients[id]) !== -1) {
-    document.querySelector('#chatHead').innerText = document.querySelector('#chatHead').innerText.replace(allClients[id], '')
-    if (document.querySelector('#chatHead').innerText === '') {
-      while (incomingMsg.firstChild) {
-        incomingMsg.removeChild(incomingMsg.firstChild)
-        sendBtn.disabled = true
-        callBtn.disabled = true
-      }
-    } else {
-      displayNotification(allClients[id] + ' left')
-    }
-  }
-  delete allClients[id]
-})
-
 function createRoom (members) {
   members.push(appData.myId)
   socket.emit('create', members)
@@ -111,6 +69,49 @@ socket.on('new peer', clients => {
 
 socket.on('clients', clients => {
   updateClientList(clients)
+})
+
+function sendMsgToRoom () {
+  if (sendData.value !== '') {
+    acceptIncomingMsg(sendData.value, 'fromMe', appData.myName, handshake.currRoom)
+    socket.emit('group chat', sendData.value, grpMembers, handshake.currRoom, appData.myId)
+    sendData.value = ''
+  }
+}
+
+sendData.addEventListener('keypress', (e) => {
+  if (e.keyCode === 13) {
+    sendMsgToRoom()
+  }
+})
+
+sendBtn.addEventListener('click', sendMsgToRoom)
+
+document.querySelector('#logout').addEventListener('click', () => {
+  socket.disconnect()
+  window.location = '/'
+})
+
+function displayNotification (notification) {
+  acceptIncomingMsg(notification, 'general', null, handshake.currRoom)
+}
+
+socket.on('disconnected', id => {
+  let disconnectedNode = document.getElementById(allClients[id])
+  listOfClients.removeChild(disconnectedNode)
+  if (document.querySelector('#chatHead').innerText.indexOf(allClients[id]) !== -1) {
+    document.querySelector('#chatHead').innerText = document.querySelector('#chatHead').innerText.replace(allClients[id], '')
+    if (document.querySelector('#chatHead').innerText === '') {
+      while (incomingMsg.firstChild) {
+        incomingMsg.removeChild(incomingMsg.firstChild)
+        sendBtn.disabled = true
+        callBtn.disabled = true
+      }
+    } else {
+      displayNotification(allClients[id] + ' left')
+    }
+  }
+  delete allClients[id]
 })
 
 function processUser (user) {
@@ -242,6 +243,7 @@ callBtn.addEventListener('click', () => {
 
 hangBtn.addEventListener('click', () => {
   handshake.currMembers = []
+  handshake.peersInCurrRoom = []
   stop()
   sendMessage('bye')
 })
