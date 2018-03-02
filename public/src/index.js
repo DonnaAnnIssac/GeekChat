@@ -315,12 +315,20 @@ function handleRemoteHangup (id) {
   }
 }
 
+function onBusy (id) {
+  displayNotification(allClients[id] + ' is busy. Try again later')
+}
+
 function onInvite (id) {
-  handshake.isInitiator = false
-  callBtn.disabled = true
-  handshake.currClient = id
-  document.getElementById('callInvite').style.display = 'block'
-  document.getElementById('caller').innerText = allClients[id] + ' is calling'
+  if (handshake.onCall) {
+    sendMessage('busy', id)
+  } else {
+    handshake.isInitiator = false
+    callBtn.disabled = true
+    handshake.currClient = id
+    document.getElementById('callInvite').style.display = 'block'
+    document.getElementById('caller').innerText = allClients[id] + ' is calling'
+  }
 }
 
 socket.on('current network', (currMembers, id) => {
@@ -411,6 +419,8 @@ socket.on('message', (message, id) => {
     onDecline(id)
   } else if (message === 'done') {
     onDone()
+  } else if (message === 'busy') {
+    onBusy(id)
   }
 })
 
